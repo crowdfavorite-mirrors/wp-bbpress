@@ -1275,8 +1275,8 @@ function bbp_check_user_edit() {
 	$displayed_id = bbp_get_displayed_user_id();
 
 	// Only allow super admins on multisite to edit every user.
-	if ( !is_user_logged_in() || ($user->ID != $displayed_id && is_multisite() && !current_user_can( 'manage_network_users' ) && bbp_is_user_home() && !apply_filters( 'enable_edit_any_user_configuration', true ) ) || !current_user_can( 'edit_user', $displayed_id() ) ) {
-		wp_safe_redirect( bbp_get_user_profile_url( $displayed_id() ) );
+	if ( !is_user_logged_in() || ($user->ID != $displayed_id && is_multisite() && !current_user_can( 'manage_network_users' ) && bbp_is_user_home() && !apply_filters( 'enable_edit_any_user_configuration', true ) ) || !current_user_can( 'edit_user', $displayed_id ) ) {
+		wp_safe_redirect( bbp_get_user_profile_url( $displayed_id ) );
 		exit();
 	}
 }
