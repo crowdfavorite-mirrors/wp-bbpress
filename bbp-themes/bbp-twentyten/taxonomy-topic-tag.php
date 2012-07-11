@@ -7,9 +7,7 @@
  * @subpackage Theme
  */
 
-?>
-
-<?php get_header(); ?>
+get_header(); ?>
 
 		<div id="container">
 			<div id="content" role="main">
@@ -29,15 +27,15 @@
 
 						<?php if ( bbp_has_topics() ) : ?>
 
-							<?php bbp_get_template_part( 'bbpress/pagination', 'topics'    ); ?>
+							<?php bbp_get_template_part( 'pagination', 'topics'    ); ?>
 
-							<?php bbp_get_template_part( 'bbpress/loop',       'topics'    ); ?>
+							<?php bbp_get_template_part( 'loop',       'topics'    ); ?>
 
-							<?php bbp_get_template_part( 'bbpress/pagination', 'topics'    ); ?>
+							<?php bbp_get_template_part( 'pagination', 'topics'    ); ?>
 
 						<?php else : ?>
 
-							<?php bbp_get_template_part( 'bbpress/feedback',   'no-topics' ); ?>
+							<?php bbp_get_template_part( 'feedback',   'no-topics' ); ?>
 
 						<?php endif; ?>
 

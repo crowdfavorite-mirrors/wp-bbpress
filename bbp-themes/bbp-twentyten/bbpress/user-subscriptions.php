@@ -9,6 +9,8 @@
 
 ?>
 
+	<?php do_action( 'bbp_template_before_user_subscriptions' ); ?>
+
 	<?php if ( bbp_is_subscriptions_active() ) : ?>
 
 		<?php if ( bbp_is_user_home() || current_user_can( 'edit_users' ) ) : ?>
@@ -16,15 +18,14 @@
 			<?php bbp_set_query_name( 'bbp_user_profile_subscriptions' ); ?>
 
 			<div id="bbp-author-subscriptions" class="bbp-author-subscriptions">
-				<hr />
 				<h2 class="entry-title"><?php _e( 'Subscribed Forum Topics', 'bbpress' ); ?></h2>
 				<div class="entry-content">
 
 					<?php if ( bbp_get_user_subscriptions() ) :
 
-						bbp_get_template_part( 'bbpress/pagination', 'topics' );
-						bbp_get_template_part( 'bbpress/loop',       'topics' );
-						bbp_get_template_part( 'bbpress/pagination', 'topics' );
+						bbp_get_template_part( 'pagination', 'topics' );
+						bbp_get_template_part( 'loop',       'topics' );
+						bbp_get_template_part( 'pagination', 'topics' );
 
 					else : ?>
 
@@ -40,3 +41,5 @@
 		<?php endif; ?>
 
 	<?php endif; ?>
+
+	<?php do_action( 'bbp_template_after_user_subscriptions' ); ?>

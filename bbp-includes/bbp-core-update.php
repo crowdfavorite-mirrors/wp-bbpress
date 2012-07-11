@@ -11,6 +11,19 @@
 if ( !defined( 'ABSPATH' ) ) exit;
 
 /**
+ * If there is no raw DB version, this is the first installation
+ *
+ * @since bbPress (r3764)
+ *
+ * @uses get_option()
+ * @uses bbp_get_db_version() To get bbPress's database version
+ * @return bool True if update, False if not
+ */
+function bbp_is_install() {
+	return ! bbp_get_db_version_raw();
+}
+
+/**
  * Compare the bbPress version to the DB version to determine if updating
  *
  * @since bbPress (r3421)
@@ -20,39 +33,37 @@ if ( !defined( 'ABSPATH' ) ) exit;
  * @return bool True if update, False if not
  */
 function bbp_is_update() {
-
-	// Current DB version of this site (per site in a multisite network)
-	$current_db   = get_option( '_bbp_db_version' );
-	$current_live = bbp_get_db_version();
-
-	// Compare versions (cast as int and bool to be safe)
-	$is_update = (bool) ( (int) $current_db < (int) $current_live );
-
-	// Return the product of version comparison
-	return $is_update;
+	return (bool) ( (int) bbp_get_db_version_raw() < (int) bbp_get_db_version() );
 }
 
 /**
  * Determine if bbPress is being activated
  *
+ * Note that this function currently is not used in bbPress core and is here
+ * for third party plugins to use to check for bbPress activation.
+ *
  * @since bbPress (r3421)
  *
- * @global bbPress $bbp
  * @return bool True if activating bbPress, false if not
  */
 function bbp_is_activation( $basename = '' ) {
-	global $bbp;
+	$bbp = bbpress();
 
-	// Baif if action or plugin are empty
-	if ( empty( $_GET['action'] ) || empty( $_GET['plugin'] ) )
-		return false;
+	$action = false;
+	if ( ! empty( $_REQUEST['action'] ) && ( '-1' != $_REQUEST['action'] ) )
+		$action = $_REQUEST['action'];
+	elseif ( ! empty( $_REQUEST['action2'] ) && ( '-1' != $_REQUEST['action2'] ) )
+		$action = $_REQUEST['action2'];
 
 	// Bail if not activating
-	if ( 'activate' !== $_GET['action'] )
+	if ( empty( $action ) || !in_array( $action, array( 'activate', 'activate-selected' ) ) )
 		return false;
 
-	// The plugin being activated
-	$plugin = isset( $_GET['plugin'] ) ? $_GET['plugin'] : '';
+	// The plugin(s) being activated
+	if ( $action == 'activate' )
+		$plugins = isset( $_GET['plugin'] ) ? array( $_GET['plugin'] ) : array();
+	else
+		$plugins = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
 
 	// Set basename if empty
 	if ( empty( $basename ) && !empty( $bbp->basename ) )
@@ -62,33 +73,34 @@ function bbp_is_activation( $basename = '' ) {
 	if ( empty( $basename ) )
 		return false;
 
-	// Bail if plugin is not bbPress
-	if ( $basename !== $_GET['plugin'] )
-		return false;
-
-	return true;
+	// Is bbPress being deactivated?
+	return in_array( $basename, $plugins );
 }
 
 /**
  * Determine if bbPress is being deactivated
  *
  * @since bbPress (r3421)
- * @global bbPress $bbp
  * @return bool True if deactivating bbPress, false if not
  */
 function bbp_is_deactivation( $basename = '' ) {
-	global $bbp;
+	$bbp = bbpress();
 
-	// Baif if action or plugin are empty
-	if ( empty( $_GET['action'] ) || empty( $_GET['plugin'] ) )
-		return false;
+	$action = false;
+	if ( ! empty( $_REQUEST['action'] ) && ( '-1' != $_REQUEST['action'] ) )
+		$action = $_REQUEST['action'];
+	elseif ( ! empty( $_REQUEST['action2'] ) && ( '-1' != $_REQUEST['action2'] ) )
+		$action = $_REQUEST['action2'];
 
 	// Bail if not deactivating
-	if ( 'deactivate' !== $_GET['action'] )
+	if ( empty( $action ) || !in_array( $action, array( 'deactivate', 'deactivate-selected' ) ) )
 		return false;
 
-	// The plugin being deactivated
-	$plugin = isset( $_GET['plugin'] ) ? $_GET['plugin'] : '';
+	// The plugin(s) being deactivated
+	if ( $action == 'deactivate' )
+		$plugins = isset( $_GET['plugin'] ) ? array( $_GET['plugin'] ) : array();
+	else
+		$plugins = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
 
 	// Set basename if empty
 	if ( empty( $basename ) && !empty( $bbp->basename ) )
@@ -98,11 +110,8 @@ function bbp_is_deactivation( $basename = '' ) {
 	if ( empty( $basename ) )
 		return false;
 
-	// Bail if plugin is not bbPress
-	if ( $basename !== $plugin )
-		return false;
-
-	return true;
+	// Is bbPress being deactivated?
+	return in_array( $basename, $plugins );
 }
 
 /**
@@ -122,8 +131,9 @@ function bbp_version_bump() {
  *
  * @since bbPress (r3419)
  *
- * @global bbPress $bbp
- * @uses BBP_Updater
+ * @uses bbp_version_bump()
+ * @uses bbp_deactivation()
+ * @uses bbp_activation()
  */
 function bbp_setup_updater() {
 
@@ -141,4 +151,61 @@ function bbp_setup_updater() {
 	}
 }
 
-?>
+/**
+ * Create a default forum, topic, and reply
+ *
+ * @since bbPress (r3767)
+ * @param array $args Array of arguments to override default values
+ */
+function bbp_create_initial_content( $args = array() ) {
+
+	$defaults = array(
+		'forum_parent'  => 0,
+		'forum_status'  => 'publish',
+		'forum_title'   => __( 'General',                                  'bbpress' ),
+		'forum_content' => __( 'General chit-chat',                        'bbpress' ),
+		'topic_title'   => __( 'Hello World!',                             'bbpress' ),
+		'topic_content' => __( 'I am the first topic in your new forums.', 'bbpress' ),
+		'reply_title'   => __( 'Re: Hello World!',                         'bbpress' ),
+		'reply_content' => __( 'Oh, and this is what a reply looks like.', 'bbpress' ),
+	);
+	$r = bbp_parse_args( $args, $defaults, 'create_initial_content' );
+	extract( $r );
+
+	// Create the initial forum
+	$forum_id = bbp_insert_forum( array(
+		'post_parent'  => $forum_parent,
+		'post_status'  => $forum_status,
+		'post_title'   => $forum_title,
+		'post_content' => $forum_content
+	) );
+
+	// Create the initial topic
+	$topic_id = bbp_insert_topic(
+		array(
+			'post_parent'  => $forum_id,
+			'post_title'   => $topic_title,
+			'post_content' => $topic_content
+		),
+		array( 'forum_id'  => $forum_id )
+	);
+
+	// Create the initial reply
+	$reply_id = bbp_insert_reply(
+		array(
+			'post_parent'  => $topic_id,
+			'post_title'   => $reply_title,
+			'post_content' => $reply_content
+		),
+		array(
+			'forum_id'     => $forum_id,
+			'topic_id'     => $topic_id
+		)
+	);
+
+	return array(
+		'forum_id' => $forum_id,
+		'topic_id' => $topic_id,
+		'reply_id' => $reply_id
+	);
+}

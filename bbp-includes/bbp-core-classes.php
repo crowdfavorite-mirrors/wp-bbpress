@@ -53,6 +53,8 @@ class BBP_Component {
 	var $current_id;
 
 
+	/** Methods ***************************************************************/
+
 	/**
 	 * bbPress Component loader
 	 *
@@ -68,7 +70,7 @@ class BBP_Component {
 	 * @uses BBP_Component::includes() Include the required files
 	 * @uses BBP_Component::setup_actions() Setup the hooks and actions
 	 */
-	function BBP_Component( $args = '' ) {
+	public function __construct( $args = '' ) {
 		if ( empty( $args ) )
 			return;
 
@@ -86,7 +88,7 @@ class BBP_Component {
 	 * @uses apply_filters() Calls 'bbp_{@link BBP_Component::name}_id'
 	 * @uses apply_filters() Calls 'bbp_{@link BBP_Component::name}_slug'
 	 */
-	function setup_globals( $args = '' ) {
+	private function setup_globals( $args = '' ) {
 		$this->name = $args['name'];
 		$this->id   = apply_filters( 'bbp_' . $this->name . '_id',   $args['id']   );
 		$this->slug = apply_filters( 'bbp_' . $this->name . '_slug', $args['slug'] );
@@ -100,7 +102,7 @@ class BBP_Component {
 	 *
 	 * @uses do_action() Calls 'bbp_{@link BBP_Component::name}includes'
 	 */
-	function includes() {
+	private function includes() {
 		do_action( 'bbp_' . $this->name . 'includes' );
 	}
 
@@ -114,18 +116,11 @@ class BBP_Component {
 	 * @uses do_action() Calls
 	 *                    'bbp_{@link BBP_Component::name}setup_actions'
 	 */
-	function setup_actions() {
-		// Register post types
-		add_action( 'bbp_register_post_types',      array ( $this, 'register_post_types'      ), 10, 2 );
-
-		// Register taxonomies
-		add_action( 'bbp_register_taxonomies',      array ( $this, 'register_taxonomies'      ), 10, 2 );
-
-		// Add the rewrite tags
-		add_action( 'bbp_add_rewrite_tags',         array ( $this, 'add_rewrite_tags'         ), 10, 2 );
-
-		// Generate rewrite rules
-		add_action( 'bbp_generate_rewrite_rules',   array ( $this, 'generate_rewrite_rules'   ), 10, 2 );
+	private function setup_actions() {
+		add_action( 'bbp_register_post_types',    array( $this, 'register_post_types'    ), 10, 2 ); // Register post types
+		add_action( 'bbp_register_taxonomies',    array( $this, 'register_taxonomies'    ), 10, 2 ); // Register taxonomies
+		add_action( 'bbp_add_rewrite_tags',       array( $this, 'add_rewrite_tags'       ), 10, 2 ); // Add the rewrite tags
+		add_action( 'bbp_generate_rewrite_rules', array( $this, 'generate_rewrite_rules' ), 10, 2 ); // Generate rewrite rules
 
 		// Additional actions can be attached here
 		do_action( 'bbp_' . $this->name . 'setup_actions' );
@@ -138,7 +133,7 @@ class BBP_Component {
 	 *
 	 * @uses do_action() Calls 'bbp_{@link BBP_Component::name}_register_post_types'
 	 */
-	function register_post_types() {
+	public function register_post_types() {
 		do_action( 'bbp_' . $this->name . '_register_post_types' );
 	}
 
@@ -149,7 +144,7 @@ class BBP_Component {
 	 *
 	 * @uses do_action() Calls 'bbp_{@link BBP_Component::name}_register_taxonomies'
 	 */
-	function register_taxonomies() {
+	public function register_taxonomies() {
 		do_action( 'bbp_' . $this->name . '_register_taxonomies' );
 	}
 
@@ -160,7 +155,7 @@ class BBP_Component {
 	 *
 	 * @uses do_action() Calls 'bbp_{@link BBP_Component::name}_add_rewrite_tags'
 	 */
-	function add_rewrite_tags() {
+	public function add_rewrite_tags() {
 		do_action( 'bbp_' . $this->name . '_add_rewrite_tags' );
 	}
 
@@ -171,8 +166,8 @@ class BBP_Component {
 	 *
 	 * @uses do_action() Calls 'bbp_{@link BBP_Component::name}_generate_rewrite_rules'
 	 */
-	function generate_rewrite_rules ( $wp_rewrite ) {
-		do_action( 'bbp_' . $this->name . '_generate_rewrite_rules' );
+	public function generate_rewrite_rules( $wp_rewrite ) {
+		do_action_ref_array( 'bbp_' . $this->name . '_generate_rewrite_rules', $wp_rewrite );
 	}
 }
 endif; // BBP_Component
@@ -189,6 +184,7 @@ if ( class_exists( 'Walker' ) ) :
  * @uses Walker
  */
 class BBP_Walker_Forum extends Walker {
+
 	/**
 	 * @see Walker::$tree_type
 	 *
@@ -207,12 +203,14 @@ class BBP_Walker_Forum extends Walker {
 	 */
 	var $db_fields = array( 'parent' => 'post_parent', 'id' => 'ID' );
 
+	/** Methods ***************************************************************/
+
 	/**
 	 * Set the tree_type
 	 *
 	 * @since bbPress (r2514)
 	 */
-	function BBP_Walker_Forum() {
+	public function __construct() {
 		$this->tree_type = bbp_get_forum_post_type();
 	}
 
@@ -225,7 +223,7 @@ class BBP_Walker_Forum extends Walker {
 	 *                        content.
 	 * @param int $depth Depth of page. Used for padding.
 	 */
-	function start_lvl( &$output, $depth ) {
+	public function start_lvl( &$output, $depth ) {
 		$indent  = str_repeat( "\t", $depth );
 		$output .= "\n$indent<ul class='children'>\n";
 	}
@@ -239,7 +237,7 @@ class BBP_Walker_Forum extends Walker {
 	 *                        content.
 	 * @param int $depth Depth of page. Used for padding.
 	 */
-	function end_lvl( &$output, $depth ) {
+	public function end_lvl( &$output, $depth ) {
 		$indent  = str_repeat( "\t", $depth );
 		$output .= "$indent</ul>\n";
 	}
@@ -256,7 +254,7 @@ class BBP_Walker_Forum extends Walker {
 	 * @param int $current_forum Page ID.
 	 * @param array $args
 	 */
-	function start_el( &$output, $forum, $depth, $args, $current_forum ) {
+	public function start_el( &$output, $forum, $depth, $args, $current_forum ) {
 
 		$indent = $depth ? str_repeat( "\t", $depth ) : '';
 
@@ -297,7 +295,7 @@ class BBP_Walker_Forum extends Walker {
 	 * @param object $forum Page data object. Not used.
 	 * @param int $depth Depth of page. Not Used.
 	 */
-	function end_el( &$output, $forum, $depth ) {
+	public function end_el( &$output, $forum, $depth ) {
 		$output .= "</li>\n";
 	}
 }
@@ -312,6 +310,7 @@ class BBP_Walker_Forum extends Walker {
  * @uses Walker
  */
 class BBP_Walker_Dropdown extends Walker {
+
 	/**
 	 * @see Walker::$tree_type
 	 *
@@ -330,12 +329,14 @@ class BBP_Walker_Dropdown extends Walker {
 	 */
 	var $db_fields = array( 'parent' => 'post_parent', 'id' => 'ID' );
 
+	/** Methods ***************************************************************/
+
 	/**
 	 * Set the tree_type
 	 *
 	 * @since bbPress (r2746)
 	 */
-	function BBP_Walker_Dropdown() {
+	public function __construct() {
 		$this->tree_type = bbp_get_forum_post_type();
 	}
 
@@ -346,7 +347,7 @@ class BBP_Walker_Dropdown extends Walker {
 	 *
 	 * @param string $output Passed by reference. Used to append additional
 	 *                        content.
-	 * @param object $post Post data object.
+	 * @param object $_post Post data object.
 	 * @param int $depth Depth of post in reference to parent posts. Used
 	 *                    for padding.
 	 * @param array $args Uses 'selected' argument for selected post to set
@@ -358,24 +359,22 @@ class BBP_Walker_Dropdown extends Walker {
 	 * @uses apply_filters() Calls 'bbp_walker_dropdown_post_title' with the
 	 *                        title, output, post, depth and args
 	 */
-	function start_el( &$output, $post, $depth, $args ) {
+	public function start_el( &$output, $_post, $depth, $args ) {
 		$pad     = str_repeat( '&nbsp;', $depth * 3 );
 		$output .= "\t<option class=\"level-$depth\"";
 
 		// Disable the <option> if we're told to do so, the post type is bbp_forum and the forum is a category or is closed
-		if ( true == $args['disable_categories'] && $post->post_type == bbp_get_forum_post_type() && ( bbp_is_forum_category( $post->ID ) || ( !current_user_can( 'edit_forum', $post->ID ) && bbp_is_forum_closed( $post->ID ) ) ) )
+		if ( true == $args['disable_categories'] && $_post->post_type == bbp_get_forum_post_type() && ( bbp_is_forum_category( $_post->ID ) || ( !current_user_can( 'edit_forum', $_post->ID ) && bbp_is_forum_closed( $_post->ID ) ) ) )
 			$output .= ' disabled="disabled" value=""';
 		else
-			$output .= ' value="' .$post->ID .'"' . selected( $args['selected'], $post->ID, false );
+			$output .= ' value="' . $_post->ID .'"' . selected( $args['selected'], $_post->ID, false );
 
 		$output .= '>';
-		$title   = esc_html( $post->post_title );
-		$title   = apply_filters( 'bbp_walker_dropdown_post_title', $post->post_title, $output, $post, $depth, $args );
+		$title   = esc_html( $_post->post_title );
+		$title   = apply_filters( 'bbp_walker_dropdown_post_title', $_post->post_title, $output, $_post, $depth, $args );
 		$output .= $pad . $title;
 		$output .= "</option>\n";
 	}
 }
 
 endif; // class_exists check
-
-?>

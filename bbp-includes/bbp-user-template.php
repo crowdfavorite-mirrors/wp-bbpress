@@ -38,7 +38,7 @@ function bbp_user_id( $user_id = 0, $displayed_user_fallback = true, $current_us
 	 * @return int Validated user id
 	 */
 	function bbp_get_user_id( $user_id = 0, $displayed_user_fallback = true, $current_user_fallback = false ) {
-		global $bbp;
+		$bbp = bbpress();
 
 		// Easy empty checking
 		if ( !empty( $user_id ) && is_numeric( $user_id ) )
@@ -56,7 +56,7 @@ function bbp_user_id( $user_id = 0, $displayed_user_fallback = true, $current_us
 		else
 			$bbp_user_id = get_query_var( 'bbp_user_id' );
 
-		return apply_filters( 'bbp_get_user_id', (int) $bbp_user_id );
+		return (int) apply_filters( 'bbp_get_user_id', (int) $bbp_user_id, $displayed_user_fallback, $current_user_fallback );
 	}
 
 /**
@@ -106,25 +106,36 @@ function bbp_displayed_user_id() {
 	}
 
 /**
- * Return a sanitized user field value
+ * Output a sanitized user field value
  *
  * @since bbPress (r2688)
  *
  * @param string $field Field to get
- * @uses sanitize_text_field() To sanitize the field
- * @uses esc_attr() To sanitize the field
- * @return string|bool Value of the field if it exists, else false
+ * @uses bbp_get_displayed_user_field() To get the field
  */
-function bbp_get_displayed_user_field( $field = '' ) {
-	global $bbp;
-
-	// Return field if exists
-	if ( isset( $bbp->displayed_user->$field ) )
-		return esc_attr( sanitize_text_field( $bbp->displayed_user->$field ) );
-
-	// Return empty
-	return false;
+function bbp_displayed_user_field( $field = '' ) {
+	echo bbp_get_displayed_user_field( $field );
 }
+	/**
+	 * Return a sanitized user field value
+	 *
+	 * @since bbPress (r2688)
+	 *
+	 * @param string $field Field to get
+	 * @uses sanitize_text_field() To sanitize the field
+	 * @uses esc_attr() To sanitize the field
+	 * @return string|bool Value of the field if it exists, else false
+	 */
+	function bbp_get_displayed_user_field( $field = '' ) {
+		$bbp = bbpress();
+
+		// Return field if exists
+		if ( isset( $bbp->displayed_user->$field ) )
+			return esc_attr( sanitize_text_field( $bbp->displayed_user->$field ) );
+
+		// Return empty
+		return false;
+	}
 
 /**
  * Output name of current user
@@ -181,10 +192,13 @@ function bbp_current_user_avatar( $size = 40 ) {
 	 */
 	function bbp_get_current_user_avatar( $size = 40 ) {
 
-		if ( !$user = bbp_get_current_user_id() )
+		$user = bbp_get_current_user_id();
+		if ( empty( $user ) )
 			$user = bbp_get_current_anonymous_user_data( 'email' );
 
-		return apply_filters( 'bbp_get_current_user_avatar', get_avatar( $user, $size ), $size );
+		$avatar = get_avatar( $user, $size );
+
+		return apply_filters( 'bbp_get_current_user_avatar', $avatar, $size );
 	}
 
 /**
@@ -212,7 +226,10 @@ function bbp_user_profile_link( $user_id = 0 ) {
 	 * @return string User profile link
 	 */
 	function bbp_get_user_profile_link( $user_id = 0 ) {
-		if ( !$user_id = bbp_get_user_id( $user_id ) )
+
+		// Validate user id
+		$user_id = bbp_get_user_id( $user_id );
+		if ( empty( $user_id ) )
 			return false;
 
 		$user      = get_userdata( $user_id );
@@ -232,7 +249,7 @@ function bbp_user_profile_link( $user_id = 0 ) {
  * @uses bbp_get_user_profile_url() To get user profile url
  */
 function bbp_user_profile_url( $user_id = 0, $user_nicename = '' ) {
-	echo bbp_get_user_profile_url( $user_id );
+	echo bbp_get_user_profile_url( $user_id, $user_nicename );
 }
 	/**
 	 * Return URL to the profile page of a user
@@ -251,10 +268,11 @@ function bbp_user_profile_url( $user_id = 0, $user_nicename = '' ) {
 	 * @return string User profile url
 	 */
 	function bbp_get_user_profile_url( $user_id = 0, $user_nicename = '' ) {
-		global $wp_rewrite, $bbp;
+		global $wp_rewrite;
 
 		// Use displayed user ID if there is one, and one isn't requested
-		if ( !$user_id = bbp_get_user_id( $user_id ) )
+		$user_id = bbp_get_user_id( $user_id );
+		if ( empty( $user_id ) )
 			return false;
 
 		// Allow early overriding of the profile URL to cut down on processing
@@ -264,7 +282,7 @@ function bbp_user_profile_url( $user_id = 0, $user_nicename = '' ) {
 
 		// Pretty permalinks
 		if ( $wp_rewrite->using_permalinks() ) {
-			$url = $wp_rewrite->root . $bbp->user_slug . '/%' . $bbp->user_id . '%';
+			$url = $wp_rewrite->root . bbp_get_user_slug() . '/%' . bbp_get_user_rewrite_id() . '%';
 
 			// Get username if not passed
 			if ( empty( $user_nicename ) ) {
@@ -274,12 +292,12 @@ function bbp_user_profile_url( $user_id = 0, $user_nicename = '' ) {
 				}
 			}
 
-			$url = str_replace( '%' . $bbp->user_id . '%', $user_nicename, $url );
+			$url = str_replace( '%' . bbp_get_user_rewrite_id() . '%', $user_nicename, $url );
 			$url = home_url( user_trailingslashit( $url ) );
 
 		// Unpretty permalinks
 		} else {
-			$url = add_query_arg( array( $bbp->user_id => $user_id ), home_url( '/' ) );
+			$url = add_query_arg( array( bbp_get_user_rewrite_id() => $user_id ), home_url( '/' ) );
 		}
 
 		return apply_filters( 'bbp_get_user_profile_url', $url, $user_id, $user_nicename );
@@ -311,7 +329,10 @@ function bbp_user_profile_edit_link( $user_id = 0 ) {
 	 * @return string User profile edit link
 	 */
 	function bbp_get_user_profile_edit_link( $user_id = 0 ) {
-		if ( !$user_id = bbp_get_user_id( $user_id ) )
+
+		// Validate user id
+		$user_id = bbp_get_user_id( $user_id );
+		if ( empty( $user_id ) )
 			return false;
 
 		$user      = get_userdata( $user_id );
@@ -330,7 +351,7 @@ function bbp_user_profile_edit_link( $user_id = 0 ) {
  * @uses bbp_get_user_profile_edit_url() To get user profile edit url
  */
 function bbp_user_profile_edit_url( $user_id = 0, $user_nicename = '' ) {
-	echo bbp_get_user_profile_edit_url( $user_id );
+	echo bbp_get_user_profile_edit_url( $user_id, $user_nicename );
 }
 	/**
 	 * Return URL to the profile edit page of a user
@@ -349,14 +370,16 @@ function bbp_user_profile_edit_url( $user_id = 0, $user_nicename = '' ) {
 	 * @return string
 	 */
 	function bbp_get_user_profile_edit_url( $user_id = 0, $user_nicename = '' ) {
-		global $wp_rewrite, $bbp;
+		global $wp_rewrite;
 
-		if ( !$user_id = bbp_get_user_id( $user_id ) )
-			return;
+		$bbp     = bbpress();
+		$user_id = bbp_get_user_id( $user_id );
+		if ( empty( $user_id ) )
+			return false;
 
 		// Pretty permalinks
 		if ( $wp_rewrite->using_permalinks() ) {
-			$url = $wp_rewrite->root . $bbp->user_slug . '/%' . $bbp->user_id . '%/' . $bbp->edit_id;
+			$url = $wp_rewrite->root . bbp_get_user_slug() . '/%' . $bbp->user_id . '%/' . $bbp->edit_id;
 
 			// Get username if not passed
 			if ( empty( $user_nicename ) ) {
@@ -376,6 +399,93 @@ function bbp_user_profile_edit_url( $user_id = 0, $user_nicename = '' ) {
 
 		return apply_filters( 'bbp_get_user_edit_profile_url', $url, $user_id, $user_nicename );
 
+	}
+
+/**
+ * Output a user's main role for display
+ *
+ * @since bbPress (r3860)
+ *
+ * @param int $user_id
+ * @uses bbp_get_user_display_role To get the user display role
+ */
+function bbp_user_display_role( $user_id = 0 ) {
+	echo bbp_get_user_display_role( $user_id );
+}
+	/**
+	 * Return a user's main role for display
+	 *
+	 * @since bbPress (r3860)
+	 *
+	 * @param int $user_id
+	 * @uses bbp_get_user_role() To get the main user role
+	 * @uses bbp_get_moderator_role() To get the moderator role
+	 * @uses bbp_get_participant_role() To get the participant role
+	 * @uses bbp_get_moderator_role() To get the moderator role
+	 * @uses apply_filters() Calls 'bbp_get_user_display_role' with the
+	 *                        display role, user id, and user role
+	 * @return string
+	 */
+	function bbp_get_user_display_role( $user_id = 0 ) {
+
+		// Validate user id
+		$user_id   = bbp_get_user_id( $user_id, false, false );
+		$user_role = bbp_get_user_role( $user_id );
+
+		// Capes earn Vinz Clortho status
+		if ( is_super_admin( $user_id ) ) {
+			$role = __( 'Key Master', 'bbpress' );
+
+		// Not the keymaster of Gozer
+		} else {
+
+			// Get the user's main role for display
+			switch ( $user_role ) {
+
+				/** bbPress Roles *********************************************/
+
+				// Anonymous
+				case bbp_get_anonymous_role() :
+					$role = __( 'Guest', 'bbpress' );
+					break;
+
+				// Multisite Participant Role
+				case bbp_get_participant_role() :
+					$role = __( 'Member', 'bbpress' );
+					break;
+
+				// Moderator
+				case bbp_get_moderator_role() :
+					$role = __( 'Moderator', 'bbpress' );
+					break;
+
+				/** WordPress Core Roles **************************************/
+
+				case 'administrator' :
+				case 'editor'        :
+				case 'author'        :
+				case 'contributor'   :
+				case 'subscriber'    :
+				default              : // Any other role (plugins, etc...)
+					global $wp_roles;
+
+					// Load roles if not set
+					if ( !isset( $wp_roles ) )
+						$wp_roles = new WP_Roles();					
+
+					// Get a translated role name
+					if ( !empty( $wp_roles->role_names[$user_role] ) )
+						$role = translate_user_role( $wp_roles->role_names[$user_role] );
+
+					// Fallback for registered user
+					else
+						$role = __( 'Member', 'bbpress' );
+
+					break;
+			}
+		}
+
+		return apply_filters( 'bbp_get_user_display_role', $role, $user_id, $user_role );
 	}
 
 /**
@@ -407,16 +517,21 @@ function bbp_admin_link( $args = '' ) {
 		if ( !current_user_can( 'moderate' ) )
 			return;
 
-		if ( $args && is_string( $args ) && false === strpos( $args, '=' ) )
+		if ( !empty( $args ) && is_string( $args ) && ( false === strpos( $args, '=' ) ) )
 			$args = array( 'text' => $args );
 
-		$defaults = array( 'text' => __( 'Admin', 'bbpress' ), 'before' => '', 'after' => '' );
-		$args     = wp_parse_args( $args, $defaults );
+		$defaults = array(
+			'text'   => __( 'Admin', 'bbpress' ),
+			'before' => '',
+			'after'  => ''
+		);
+		$args = bbp_parse_args( $args, $defaults, 'get_admin_link' );
 		extract( $args, EXTR_SKIP );
 
-		$uri = admin_url();
+		$uri    = admin_url();
+		$retval = $before . '<a href="' . $uri . '">' . $text . '</a>' . $after;
 
-		return apply_filters( 'bbp_get_admin_link', $before . '<a href="' . $uri . '">' . $text . '</a>' . $after, $args );
+		return apply_filters( 'bbp_get_admin_link', $retval, $args );
 	}
 
 /** User IP *******************************************************************/
@@ -450,7 +565,7 @@ function bbp_author_ip( $args = '' ) {
 			'after'   => ')</span>'
 		);
 
-		$r = wp_parse_args( $args, $defaults );
+		$r = bbp_parse_args( $args, $defaults, 'get_author_ip' );
 		extract( $r );
 
 		// Used as post id
@@ -458,12 +573,14 @@ function bbp_author_ip( $args = '' ) {
 			$post_id = $args;
 
 		// Get the author IP meta value
-		if ( $author_ip = get_post_meta( $post_id, '_bbp_author_ip', true ) )
+		$author_ip = get_post_meta( $post_id, '_bbp_author_ip', true );
+		if ( !empty( $author_ip ) ) {
 			$author_ip = $before . $author_ip . $after;
 
 		// No IP address
-		else
+		} else {
 			$author_ip = '';
+		}
 
 		return apply_filters( 'bbp_get_author_ip', $author_ip, $args );
 	}
@@ -504,10 +621,11 @@ function bbp_favorites_permalink( $user_id = 0 ) {
  * @param array $add Optional. Add to favorites args
  * @param array $rem Optional. Remove from favorites args
  * @param int $user_id Optional. User id
+ * @param int $topic_id Optional. Topic id
  * @uses bbp_get_user_favorites_link() To get the user favorites link
  */
-function bbp_user_favorites_link( $add = array(), $rem = array(), $user_id = 0 ) {
-	echo bbp_get_user_favorites_link( $add, $rem, $user_id );
+function bbp_user_favorites_link( $add = array(), $rem = array(), $user_id = 0, $topic_id = 0 ) {
+	echo bbp_get_user_favorites_link( $add, $rem, $user_id, $topic_id );
 }
 	/**
 	 * User favorites link
@@ -520,6 +638,7 @@ function bbp_user_favorites_link( $add = array(), $rem = array(), $user_id = 0 )
 	 * @param array $add Optional. Add to favorites args
 	 * @param array $rem Optional. Remove from favorites args
 	 * @param int $user_id Optional. User id
+	 * @param int $topic_id Optional. Topic id
 	 * @uses bbp_get_user_id() To get the user id
 	 * @uses current_user_can() If the current user can edit the user
 	 * @uses bbp_get_topic_id() To get the topic id
@@ -531,17 +650,17 @@ function bbp_user_favorites_link( $add = array(), $rem = array(), $user_id = 0 )
 	 *                        html, add args, remove args, user & topic id
 	 * @return string User favorites link
 	 */
-	function bbp_get_user_favorites_link( $add = array(), $rem = array(), $user_id = 0 ) {
+	function bbp_get_user_favorites_link( $add = array(), $rem = array(), $user_id = 0, $topic_id = 0 ) {
 		if ( !bbp_is_favorites_active() )
 			return false;
 
-		if ( !$user_id = bbp_get_user_id( $user_id, true, true ) )
+		// Validate user and topic ID's
+		$user_id  = bbp_get_user_id( $user_id, true, true );
+		$topic_id = bbp_get_topic_id( $topic_id );
+		if ( empty( $user_id ) || empty( $topic_id ) )
 			return false;
 
 		if ( !current_user_can( 'edit_user', (int) $user_id ) )
-			return false;
-
-		if ( !$topic_id = bbp_get_topic_id() )
 			return false;
 
 		if ( empty( $add ) || !is_array( $add ) ) {
@@ -559,33 +678,38 @@ function bbp_user_favorites_link( $add = array(), $rem = array(), $user_id = 0 )
 			);
 		}
 
-		if ( $is_fav = bbp_is_user_favorite( $user_id, $topic_id ) ) {
-			$url  = esc_url( bbp_get_favorites_permalink( $user_id ) );
-			$rem  = preg_replace( '|%(.+)%|', "<a href='$url'>$1</a>", $rem );
-			$favs = array( 'action' => 'bbp_favorite_remove', 'topic_id' => $topic_id );
-			$pre  = ( is_array( $rem ) && isset( $rem['pre']  ) ) ? $rem['pre']  : '';
-			$mid  = ( is_array( $rem ) && isset( $rem['mid']  ) ) ? $rem['mid']  : ( is_string( $rem ) ? $rem : '' );
-			$post = ( is_array( $rem ) && isset( $rem['post'] ) ) ? $rem['post'] : '';
+		$is_fav = bbp_is_user_favorite( $user_id, $topic_id );
+		if ( !empty( $is_fav ) ) {
+			$url   = esc_url( bbp_get_favorites_permalink( $user_id ) );
+			$rem   = preg_replace( '|%(.+)%|', "<a href='$url'>$1</a>", $rem );
+			$favs  = array( 'action' => 'bbp_favorite_remove', 'topic_id' => $topic_id );
+			$pre   = ( is_array( $rem ) && isset( $rem['pre']  ) ) ? $rem['pre']  : '';
+			$mid   = ( is_array( $rem ) && isset( $rem['mid']  ) ) ? $rem['mid']  : ( is_string( $rem ) ? $rem : '' );
+			$_post = ( is_array( $rem ) && isset( $rem['post'] ) ) ? $rem['post'] : '';
 		} else {
-			$url  = esc_url( bbp_get_topic_permalink( $topic_id ) );
-			$add  = preg_replace( '|%(.+)%|', "<a href='$url'>$1</a>", $add );
-			$favs = array( 'action' => 'bbp_favorite_add', 'topic_id' => $topic_id );
-			$pre  = ( is_array( $add ) && isset( $add['pre']  ) ) ? $add['pre']  : '';
-			$mid  = ( is_array( $add ) && isset( $add['mid']  ) ) ? $add['mid']  : ( is_string( $add ) ? $add : '' );
-			$post = ( is_array( $add ) && isset( $add['post'] ) ) ? $add['post'] : '';
+			$url   = esc_url( bbp_get_favorites_permalink( $user_id ) );
+			$add   = preg_replace( '|%(.+)%|', "<a href='$url'>$1</a>", $add );
+			$favs  = array( 'action' => 'bbp_favorite_add', 'topic_id' => $topic_id );
+			$pre   = ( is_array( $add ) && isset( $add['pre']  ) ) ? $add['pre']  : '';
+			$mid   = ( is_array( $add ) && isset( $add['mid']  ) ) ? $add['mid']  : ( is_string( $add ) ? $add : '' );
+			$_post = ( is_array( $add ) && isset( $add['post'] ) ) ? $add['post'] : '';
 		}
 
-		// Create the link based where the user is and if the topic is already the user's favorite
-		if ( bbp_is_favorites() )
+		// Create the link based where the user is and if the topic is
+		// already the user's favorite
+		if ( bbp_is_favorites() ) {
 			$permalink = bbp_get_favorites_permalink( $user_id );
-		elseif ( is_singular( bbp_get_topic_post_type() ) )
+		} elseif ( is_singular( bbp_get_topic_post_type() ) ) {
 			$permalink = bbp_get_topic_permalink( $topic_id );
-		elseif ( bbp_is_query_name( 'bbp_single_topic' ) )
+		} elseif ( is_singular( bbp_get_reply_post_type() ) ) {
+			$permalink = bbp_get_topic_permalink( $topic_id );
+		} elseif ( bbp_is_query_name( 'bbp_single_topic' ) ) {
 			$permalink = get_permalink();
+		}
 
-		$url       = esc_url( wp_nonce_url( add_query_arg( $favs, $permalink ), 'toggle-favorite_' . $topic_id ) );
-		$is_fav    = $is_fav ? 'is-favorite' : '';
-		$html      = '<span id="favorite-toggle"><span id="favorite-' . $topic_id . '" class="' . $is_fav . '">' . $pre . '<a href="' . $url . '" class="dim:favorite-toggle:favorite-' . $topic_id . ':is-favorite">' . $mid . '</a>' . $post . '</span></span>';
+		$url    = esc_url( wp_nonce_url( add_query_arg( $favs, $permalink ), 'toggle-favorite_' . $topic_id ) );
+		$is_fav = $is_fav ? 'is-favorite' : '';
+		$html   = '<span id="favorite-toggle"><span id="favorite-' . $topic_id . '" class="' . $is_fav . '">' . $pre . '<a href="' . $url . '" class="dim:favorite-toggle:favorite-' . $topic_id . ':is-favorite">' . $mid . '</a>' . $_post . '</span></span>';
 
 		// Return the link
 		return apply_filters( 'bbp_get_user_favorites_link', $html, $add, $rem, $user_id, $topic_id );
@@ -666,38 +790,42 @@ function bbp_user_subscribe_link( $args = '' ) {
 			'before'      => '&nbsp;|&nbsp;',
 			'after'       => ''
 		);
-
-		$args = wp_parse_args( $args, $defaults );
+		$args = bbp_parse_args( $args, $defaults, 'get_user_subscribe_link' );
 		extract( $args );
 
-		// Try to get a user_id
-		if ( !$user_id = bbp_get_user_id( $user_id, true, true ) )
+		// Validate user and topic ID's
+		$user_id  = bbp_get_user_id( $user_id, true, true );
+		$topic_id = bbp_get_topic_id( $topic_id );
+		if ( empty( $user_id ) || empty( $topic_id ) ) {
 			return false;
+		}
 
 		// No link if you can't edit yourself
-		if ( !current_user_can( 'edit_user', (int) $user_id ) )
+		if ( !current_user_can( 'edit_user', (int) $user_id ) ) {
 			return false;
-
-		// No link if not viewing a topic
-		if ( !$topic_id = bbp_get_topic_id( $topic_id ) )
-			return false;
+		}
 
 		// Decine which link to show
-		if ( $is_subscribed = bbp_is_user_subscribed( $user_id, $topic_id ) ) {
-			$text = $unsubscribe;
-			$query_args  = array( 'action' => 'bbp_unsubscribe', 'topic_id' => $topic_id );
+		$is_subscribed = bbp_is_user_subscribed( $user_id, $topic_id );
+		if ( !empty( $is_subscribed ) ) {
+			$text       = $unsubscribe;
+			$query_args = array( 'action' => 'bbp_unsubscribe', 'topic_id' => $topic_id );
 		} else {
-			$text = $subscribe;
+			$text       = $subscribe;
 			$query_args = array( 'action' => 'bbp_subscribe', 'topic_id' => $topic_id );
 		}
 
-		// Create the link based where the user is and if the user is subscribed already
-		if ( bbp_is_subscriptions() )
+		// Create the link based where the user is and if the user is
+		// subscribed already
+		if ( bbp_is_subscriptions() ) {
 			$permalink = bbp_get_subscriptions_permalink( $user_id );
-		elseif ( is_singular( bbp_get_topic_post_type() ) )
+		} elseif ( is_singular( bbp_get_topic_post_type() ) ) {
 			$permalink = bbp_get_topic_permalink( $topic_id );
-		elseif ( bbp_is_query_name( 'bbp_single_topic' ) )
+		} elseif ( is_singular( bbp_get_reply_post_type() ) ) {
+			$permalink = bbp_get_topic_permalink( $topic_id );
+		} elseif ( bbp_is_query_name( 'bbp_single_topic' ) ) {
 			$permalink = get_permalink();
+		}
 
 		$url           = esc_url( wp_nonce_url( add_query_arg( $query_args, $permalink ), 'toggle-subscription_' . $topic_id ) );
 		$is_subscribed = $is_subscribed ? 'is-subscribed' : '';
@@ -741,12 +869,13 @@ function bbp_notice_edit_user_success() {
  * @uses bbp_get_displayed_user_id() To get the displayed user id
  * @uses is_super_admin() To check if the user is super admin
  * @uses bbp_is_user_home() To check if it's the user home
+ * @uses bbp_is_user_home_edit() To check if it's the user home edit
  */
 function bbp_notice_edit_user_is_super_admin() {
 	if ( is_multisite() && ( bbp_is_single_user() || bbp_is_single_user_edit() ) && current_user_can( 'manage_network_options' ) && is_super_admin( bbp_get_displayed_user_id() ) ) : ?>
 
 	<div class="bbp-template-notice important">
-		<p><?php bbp_is_user_home() ? _e( 'You have super admin privileges.', 'bbpress' ) : _e( 'This user has super admin privileges.', 'bbpress' ); ?></p>
+		<p><?php bbp_is_user_home() || bbp_is_user_home_edit() ? _e( 'You have super admin privileges.', 'bbpress' ) : _e( 'This user has super admin privileges.', 'bbpress' ); ?></p>
 	</div>
 
 <?php endif;
@@ -758,8 +887,7 @@ function bbp_notice_edit_user_is_super_admin() {
  * @since bbPress (r2688)
  */
 function bbp_edit_user_display_name() {
-	global $bbp;
-
+	$bbp            = bbpress();
 	$public_display = array();
 	$public_display['display_username'] = $bbp->displayed_user->user_login;
 
@@ -802,17 +930,17 @@ function bbp_edit_user_display_name() {
  * @since bbPress (r2688)
  */
 function bbp_edit_user_role() {
-	global $bbp;
 
 	// Return if no user is displayed
-	if ( !isset( $bbp->displayed_user ) )
+	if ( !isset( bbpress()->displayed_user ) )
 		return;
 
 	// Local variables
 	$p = $r = '';
 
 	// print the 'no role' option. Make it selected if the user has no role yet.
-	if ( !$user_role = array_shift( $bbp->displayed_user->roles ) )
+	$user_role = array_shift( bbpress()->displayed_user->roles );
+	if ( empty( $user_role ) )
 		$r .= '<option value="">' . __( '&mdash; No role for this site &mdash;', 'bbpress' ) . '</option>';
 
 	// Loop through roles
@@ -820,10 +948,11 @@ function bbp_edit_user_role() {
 		$name = translate_user_role( $details['name'] );
 
 		// Make default first in list
-		if ( $user_role == $role )
+		if ( $user_role == $role ) {
 			$p = "\n\t<option selected='selected' value='" . esc_attr( $role ) . "'>{$name}</option>";
-		else
+		} else {
 			$r .= "\n\t<option value='" . esc_attr( $role ) . "'>{$name}</option>";
+		}
 	}
 
 	// Output result
@@ -840,10 +969,9 @@ function bbp_edit_user_role() {
  * @return string User contact methods
  */
 function bbp_edit_user_contact_methods() {
-	global $bbp;
 
 	// Get the core WordPress contact methods
-	$contact_methods = _wp_get_user_contactmethods( $bbp->displayed_user );
+	$contact_methods = _wp_get_user_contactmethods( bbpress()->displayed_user );
 
 	return apply_filters( 'bbp_edit_user_contact_methods', $contact_methods );
 }
@@ -1031,43 +1159,55 @@ function bbp_author_link( $args = '' ) {
 	 * @return string Author link of reply
 	 */
 	function bbp_get_author_link( $args = '' ) {
-		$defaults = array (
+
+		// Default arguments
+		$defaults = array(
 			'post_id'    => 0,
 			'link_title' => '',
 			'type'       => 'both',
 			'size'       => 80
 		);
-
-		$r = wp_parse_args( $args, $defaults );
+		$r = bbp_parse_args( $args, $defaults, 'get_author_link' );
 		extract( $r );
 
 		// Used as reply_id
 		if ( is_numeric( $args ) )
 			$post_id = $args;
 
+		// Confirmed topic
 		if ( bbp_is_topic( $post_id ) )
 			return bbp_get_topic_author_link( $args );
+
+		// Confirmed reply
 		elseif ( bbp_is_reply( $post_id ) )
 			return bbp_get_reply_author_link( $args );
+
+		// Get the post author and proceed
 		else
 			$user_id = get_post_field( 'post_author', $post_id );
 
 		// Neither a reply nor a topic, so could be a revision
 		if ( !empty( $post_id ) ) {
-			if ( empty( $link_title ) )
-				$link_title = sprintf( !bbp_is_reply_anonymous( $post_id ) ? __( 'View %s\'s profile', 'bbpress' ) : __( 'Visit %s\'s website', 'bbpress' ), get_the_author_meta( 'display_name', $user_id ) );
 
+			// Generate title with the display name of the author
+			if ( empty( $link_title ) ) {
+				$link_title = sprintf( !bbp_is_reply_anonymous( $post_id ) ? __( 'View %s\'s profile', 'bbpress' ) : __( 'Visit %s\'s website', 'bbpress' ), get_the_author_meta( 'display_name', $user_id ) );
+			}
+
+			// Assemble some link bits
 			$link_title = !empty( $link_title ) ? ' title="' . $link_title . '"' : '';
 			$author_url = bbp_get_user_profile_url( $user_id );
 			$anonymous  = bbp_is_reply_anonymous( $post_id );
 
 			// Get avatar
-			if ( 'avatar' == $type || 'both' == $type )
+			if ( 'avatar' == $type || 'both' == $type ) {
 				$author_links[] = get_avatar( $user_id, $size );
+			}
 
 			// Get display name
-			if ( 'name' == $type   || 'both' == $type )
+			if ( 'name' == $type   || 'both' == $type ) {
 				$author_links[] = get_the_author_meta( 'display_name', $user_id );
+			}
 
 			// Add links if not anonymous
 			if ( empty( $anonymous ) ) {
@@ -1099,7 +1239,7 @@ function bbp_author_link( $args = '' ) {
  * @uses bbp_get_current_user_id()
  * @uses bbp_get_forum_id()
  * @uses bbp_allow_anonymous()
- * @uses wp_parse_args()
+ * @uses bbp_parse_args()
  * @uses bbp_get_user_id()
  * @uses current_user_can()
  * @uses is_super_admin()
@@ -1113,12 +1253,13 @@ function bbp_author_link( $args = '' ) {
  */
 function bbp_user_can_view_forum( $args = '' ) {
 
+	// Default arguments
 	$defaults = array(
 		'user_id'         => bbp_get_current_user_id(),
 		'forum_id'        => bbp_get_forum_id(),
 		'check_ancestors' => false
 	);
-	$r = wp_parse_args( $args, $defaults );
+	$r = bbp_parse_args( $args, $defaults, 'user_can_view_forum' );
 	extract( $r );
 
 	// Validate parsed values
@@ -1173,11 +1314,40 @@ function bbp_current_user_can_publish_topics() {
 		$retval = true;
 
 	// User is logged in
-	elseif ( bbp_is_user_active() && current_user_can( 'publish_topics' ) )
+	elseif ( current_user_can( 'publish_topics' ) )
 		$retval = true;
 
 	// Allow access to be filtered
-	return apply_filters( 'bbp_current_user_can_publish_topics', (bool) $retval );
+	return (bool) apply_filters( 'bbp_current_user_can_publish_forums', $retval );
+}
+
+/**
+ * Check if the current user can publish forums
+ *
+ * @since bbPress (r3549)
+ *
+ * @uses is_super_admin()
+ * @uses bbp_is_user_active()
+ * @uses current_user_can()
+ * @uses apply_filters()
+ *
+ * @return bool
+ */
+function bbp_current_user_can_publish_forums() {
+
+	// Users need to earn access
+	$retval = false;
+
+	// Always allow super admins
+	if ( is_super_admin() )
+		$retval = true;
+
+	// User is logged in
+	elseif ( current_user_can( 'publish_forums' ) )
+		$retval = true;
+
+	// Allow access to be filtered
+	return (bool) apply_filters( 'bbp_current_user_can_publish_forums', $retval );
 }
 
 /**
@@ -1208,16 +1378,17 @@ function bbp_current_user_can_publish_replies() {
 		$retval = true;
 
 	// User is logged in
-	elseif ( bbp_is_user_active() && current_user_can( 'publish_replies' ) )
+	elseif ( current_user_can( 'publish_replies' ) )
 		$retval = true;
 
 	// Allow access to be filtered
-	return apply_filters( 'bbp_current_user_can_publish_replies', (bool) $retval );
+	return (bool) apply_filters( 'bbp_current_user_can_publish_replies', $retval );
 }
 
 /** Forms *********************************************************************/
 
 /**
+ * Get the forums the current user has the ability to see and post to
  *
  * @since bbPress (r3127)
  *
@@ -1253,7 +1424,7 @@ function bbp_get_forums_for_current_user( $args = array() ) {
 		'numberposts' => -1,
 		'exclude'     => $post__not_in
 	);
-	$r = wp_parse_args( $args, $defaults );
+	$r = bbp_parse_args( $args, $defaults, 'get_forums_for_current_user' );
 
 	// Get the forums
 	$forums = get_posts( $r );
@@ -1263,6 +1434,38 @@ function bbp_get_forums_for_current_user( $args = array() ) {
 		$forums = false;
 
 	return apply_filters( 'bbp_get_forums_for_current_user', $forums );
+}
+
+/**
+ * Performs a series of checks to ensure the current user can create forums.
+ *
+ * @since bbPress (r3549)
+ *
+ * @uses bbp_is_forum_edit()
+ * @uses current_user_can()
+ * @uses bbp_get_forum_id()
+ *
+ * @return bool
+ */
+function bbp_current_user_can_access_create_forum_form() {
+
+	// Users need to earn access
+	$retval = false;
+
+	// Always allow super admins
+	if ( is_super_admin() )
+		$retval = true;
+
+	// Looking at a single forum & forum is open
+	elseif ( ( is_page() || is_single() ) && bbp_is_forum_open() )
+		$retval = bbp_current_user_can_publish_forums();
+
+	// User can edit this topic
+	elseif ( bbp_is_forum_edit() )
+		$retval = current_user_can( 'edit_forum', bbp_get_forum_id() );
+
+	// Allow access to be filtered
+	return (bool) apply_filters( 'bbp_current_user_can_access_create_forum_form', (bool) $retval );
 }
 
 /**
@@ -1280,15 +1483,15 @@ function bbp_get_forums_for_current_user( $args = array() ) {
  */
 function bbp_current_user_can_access_create_topic_form() {
 
-	// Always allow super admins
-	if ( is_super_admin() )
-		return true;
-
 	// Users need to earn access
 	$retval = false;
 
+	// Always allow super admins
+	if ( is_super_admin() )
+		$retval = true;
+
 	// Looking at a single forum & forum is open
-	if ( ( bbp_is_single_forum() || is_page() || is_single() ) && bbp_is_forum_open() )
+	elseif ( ( bbp_is_single_forum() || is_page() || is_single() ) && bbp_is_forum_open() )
 		$retval = bbp_current_user_can_publish_topics();
 
 	// User can edit this topic
@@ -1296,7 +1499,7 @@ function bbp_current_user_can_access_create_topic_form() {
 		$retval = current_user_can( 'edit_topic', bbp_get_topic_id() );
 
 	// Allow access to be filtered
-	return apply_filters( 'bbp_current_user_can_access_create_topic_form', (bool) $retval );
+	return (bool) apply_filters( 'bbp_current_user_can_access_create_topic_form', (bool) $retval );
 }
 
 /**
@@ -1314,15 +1517,15 @@ function bbp_current_user_can_access_create_topic_form() {
  */
 function bbp_current_user_can_access_create_reply_form() {
 
-	// Always allow super admins
-	if ( is_super_admin() )
-		return true;
-
 	// Users need to earn access
 	$retval = false;
 
+	// Always allow super admins
+	if ( is_super_admin() )
+		$retval = true;
+
 	// Looking at a single topic, topic is open, and forum is open
-	if ( ( bbp_is_single_topic() || is_page() || is_single() ) && bbp_is_topic_open() && bbp_is_forum_open() )
+	elseif ( ( bbp_is_single_topic() || is_page() || is_single() ) && bbp_is_topic_open() && bbp_is_forum_open() )
 		$retval = bbp_current_user_can_publish_replies();
 
 	// User can edit this topic
@@ -1330,7 +1533,5 @@ function bbp_current_user_can_access_create_reply_form() {
 		$retval = current_user_can( 'edit_reply', bbp_get_reply_id() );
 
 	// Allow access to be filtered
-	return apply_filters( 'bbp_current_user_can_access_create_topic_form', (bool) $retval );
+	return (bool) apply_filters( 'bbp_current_user_can_access_create_reply_form', (bool) $retval );
 }
-
-?>

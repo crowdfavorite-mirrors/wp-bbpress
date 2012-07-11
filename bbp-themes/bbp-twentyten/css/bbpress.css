@@ -139,6 +139,11 @@ span.bbp-author-ip {
 	text-align: center;
 	vertical-align: top;
 }
+#content td.bbp-topic-author .bbp-author-role,
+#content td.bbp-reply-author .bbp-author-role {
+	font-size: 11px;
+	font-style: italic;
+}
 .bbp-topic-title {
 	width: 55%;
 	text-align: left;
@@ -186,8 +191,8 @@ td.bbp-topic-counts {
 	width: 50%;
 }
 
-a.bbp-topic-permalink,
-a.bbp-reply-permalink {
+.bbp-topic a.bbp-topic-permalink,
+.bbp-replies a.bbp-reply-permalink {
 	float: right;
 	margin-left: 10px;
 	color: #ccc;
@@ -266,11 +271,12 @@ a.bbp-reply-permalink {
 /* =Forums
 -------------------------------------------------------------- */
 
-#content table tbody tr .bbp-forum-description p {
+#content table tbody tr .bbp-forum-content p {
 	margin-bottom: 0;
 	font-size: 13px;
 	font-style: italic;
 }
+
 #content table tbody tr ul.bbp-forums {
 	list-style: none;
 	font-size: 12px;
@@ -280,6 +286,17 @@ a.bbp-reply-permalink {
 }
 #content table tbody tr ul.bbp-forums li {
 	display: inline;
+}
+
+#bbpress-forums .bbp-forums-list {
+	margin: 0 0 0 5px;
+	padding-left: 15px;
+	border-left: 1px solid #ddd;
+}
+
+#bbpress-forums .bbp-forums-list li {
+	display: inline;
+	font-size: 11px;
 }
 
 /* =Pagination
@@ -334,7 +351,7 @@ a.bbp-reply-permalink {
 #content fieldset.bbp-form label,
 #container fieldset.bbp-form label,
 #wrapper fieldset.bbp-form label {
-	width: 250px;
+	margin: 0;
 	display: inline-block;
 }
 
@@ -361,12 +378,25 @@ a.bbp-reply-permalink {
 }
 
 textarea#bbp_reply_content,
-textarea#bbp_topic_content {
-	width: 100%;
+textarea#bbp_topic_content,
+textarea#bbp_forum_content {
+	width: 97%;
 	box-sizing: border-box;
 	-webkit-box-sizing:border-box;
 	-moz-box-sizing: border-box;
 	-ms-box-sizing: border-box;
+}
+
+textarea#bbp_forum_content {
+	height: 210px;
+}
+
+#content fieldset.bbp-forum-form-attributes,
+#container fieldset.bbp-forum-form-attributes,
+#wrapper fieldset.bbp-forum-form-attributes {
+	width: 200px;
+	float: right;
+	clear: none;
 }
 
 .bbp-topic-form,
@@ -406,7 +436,9 @@ body.reply-edit .bbp-reply-form code {
 }
 
 div.bbp-submit-wrapper {
+	margin-top: 15px;
 	float: right;
+	clear: both;
 }
 
 p.form-allowed-tags {
@@ -420,6 +452,55 @@ input[type="password"] {
 	-moz-box-shadow: inset 1px 1px 1px rgba(0,0,0,0.1);
 	-webkit-box-shadow: inset 1px 1px 1px rgba(0,0,0,0.1);
 	padding: 2px;
+}
+
+/* =TinyMCE in themes
+-------------------------------------------------------------- */
+#content div.bbp-the-content-wrapper {
+	margin-bottom: 10px;
+}
+
+#content div.bbp-the-content-wrapper textarea.bbp-the-content {
+	width: 100%;
+	margin: 0;
+	font-size: 12px;
+}
+
+#content div.bbp-the-content-wrapper table,
+#content div.bbp-the-content-wrapper tbody,
+#content div.bbp-the-content-wrapper tr,
+#content div.bbp-the-content-wrapper td {
+	border: none;
+	padding: 0;
+	margin: 0;
+	width: auto;
+	line-height: 1em;
+}
+
+#content div.bbp-the-content-wrapper input {
+	font-size: 12px;
+	padding: 5px;
+	margin: 3px 0 0;
+	line-height: 1em;
+	margin: 0;
+}
+
+#content div.bbp-the-content-wrapper div.quicktags-toolbar {
+	padding: 5px;
+	min-height: 26px;
+}
+#content div.bbp-the-content-wrapper td.mceToolbar {
+	padding: 4px 4px 8px;
+}
+
+#content div.wp-editor-container {
+	margin: 0;
+	padding: 0;
+	line-height: 0;
+}
+
+#content div.bbp-the-content-wrapper td.mceStatusbar {
+	line-height: 16px;
 }
 
 /* =Edit User

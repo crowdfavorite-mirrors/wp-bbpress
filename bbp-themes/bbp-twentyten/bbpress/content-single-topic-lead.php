@@ -9,6 +9,8 @@
 
 ?>
 
+	<?php do_action( 'bbp_template_before_lead_topic' ); ?>
+
 	<table class="bbp-topic" id="bbp-topic-<?php bbp_topic_id(); ?>">
 		<thead>
 			<tr>
@@ -51,7 +53,7 @@
 
 				<td class="bbp-topic-author">
 
-					<?php bbp_topic_author_link( array( 'sep' => '<br />' ) ); ?>
+					<?php bbp_topic_author_link( array( 'sep' => '<br />', 'show_role' => true ) ); ?>
 
 					<?php if ( is_super_admin() ) : ?>
 
@@ -71,3 +73,5 @@
 
 		</tbody>
 	</table><!-- #bbp-topic-<?php bbp_topic_id(); ?> -->
+
+	<?php do_action( 'bbp_template_after_lead_topic' ); ?>

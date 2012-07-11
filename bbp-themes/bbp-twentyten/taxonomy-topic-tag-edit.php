@@ -7,9 +7,7 @@
  * @subpackage Theme
  */
 
-?>
-
-<?php get_header(); ?>
+get_header(); ?>
 
 		<div id="container">
 			<div id="content" role="main">
@@ -27,7 +25,7 @@
 
 						<?php do_action( 'bbp_template_before_topic_tag_edit' ); ?>
 
-						<?php bbp_get_template_part( 'bbpress/form', 'topic-tag' ); ?>
+						<?php bbp_get_template_part( 'form', 'topic-tag' ); ?>
 
 						<?php do_action( 'bbp_template_after_topic_tag_edit' ); ?>
 

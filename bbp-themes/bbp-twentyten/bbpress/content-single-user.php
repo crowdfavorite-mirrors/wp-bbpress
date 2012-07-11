@@ -9,18 +9,22 @@
 
 ?>
 
-	<?php do_action( 'bbp_template_notices' );
+<div id="bbpress-forums">
 
-	// Profile details
-	bbp_get_template_part( 'bbpress/user', 'details'        );
+	<?php do_action( 'bbp_template_notices' ); ?>
 
-	// Subscriptions
-	bbp_get_template_part( 'bbpress/user', 'subscriptions'  );
+	<?php bbp_get_template_part( 'user', 'details'        ); ?>
 
-	// Favorite topics
-	bbp_get_template_part( 'bbpress/user', 'favorites'      );
+	<hr />
 
-	// Topics created
-	bbp_get_template_part( 'bbpress/user', 'topics-created' );
+	<?php bbp_get_template_part( 'user', 'subscriptions'  ); ?>
 
-?>
+	<hr />
+
+	<?php bbp_get_template_part( 'user', 'favorites'      ); ?>
+
+	<hr />
+
+	<?php bbp_get_template_part( 'user', 'topics-created' ); ?>
+
+</div>

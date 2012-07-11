@@ -25,7 +25,7 @@ class BBP_Replies_Admin {
 	/**
 	 * @var The post type of this admin component
 	 */
-	var $post_type = '';
+	private $post_type = '';
 
 	/** Functions *************************************************************/
 
@@ -38,10 +38,9 @@ class BBP_Replies_Admin {
 	 * @uses BBP_Replies_Admin::setup_actions() Setup the hooks and actions
 	 * @uses BBP_Replies_Admin::setup_actions() Setup the help text
 	 */
-	function __construct() {
+	public function __construct() {
 		$this->setup_globals();
 		$this->setup_actions();
-		$this->setup_help();
 	}
 
 	/**
@@ -56,10 +55,10 @@ class BBP_Replies_Admin {
 	 * @uses bbp_get_topic_post_type() To get the topic post type
 	 * @uses bbp_get_reply_post_type() To get the reply post type
 	 */
-	function setup_actions() {
+	private function setup_actions() {
 
 		// Add some general styling to the admin area
-		add_action( 'admin_head',            array( $this, 'admin_head'       ) );
+		add_action( 'bbp_admin_head',        array( $this, 'admin_head'       ) );
 
 		// Messages
 		add_filter( 'post_updated_messages', array( $this, 'updated_messages' ) );
@@ -76,7 +75,7 @@ class BBP_Replies_Admin {
 		add_action( 'save_post',      array( $this, 'reply_attributes_metabox_save' ) );
 
 		// Check if there are any bbp_toggle_reply_* requests on admin_init, also have a message displayed
-		add_action( 'bbp_admin_init', array( $this, 'toggle_reply'        ) );
+		add_action( 'load-edit.php',  array( $this, 'toggle_reply'        ) );
 		add_action( 'admin_notices',  array( $this, 'toggle_reply_notice' ) );
 
 		// Anonymous metabox actions
@@ -85,94 +84,168 @@ class BBP_Replies_Admin {
 
 		// Add ability to filter topics and replies per forum
 		add_filter( 'restrict_manage_posts', array( $this, 'filter_dropdown'  ) );
-		add_filter( 'request',               array( $this, 'filter_post_rows' ) );
+		add_filter( 'bbp_request',           array( $this, 'filter_post_rows' ) );
+
+		// Contextual Help
+		add_action( 'load-edit.php',     array( $this, 'edit_help' ) );
+		add_action( 'load-post-new.php', array( $this, 'new_help'  ) );
 	}
 
+	/**
+	 * Should we bail out of this method?
+	 *
+	 * @since bbPress (r4067)
+	 * @return boolean
+	 */
+	private function bail() {
+		if ( $this->post_type != get_current_screen()->post_type )
+			return true;
+
+		return false;
+	}
+		
 	/**
 	 * Admin globals
 	 *
 	 * @since bbPress (r2646)
 	 * @access private
 	 */
-	function setup_globals() {
-
-		// Setup the post type for this admin component
+	private function setup_globals() {
 		$this->post_type = bbp_get_reply_post_type();
 	}
 
+	/** Contextual Help *******************************************************/
+
 	/**
-	 * Contextual help for replies
+	 * Contextual help for bbPress reply edit page
 	 *
 	 * @since bbPress (r3119)
-	 * @access private
+	 * @uses get_current_screen()
 	 */
-	function setup_help() {
+	public function edit_help() {
 
-		// Define local variable(s)
-		$contextual_help = array();
+		if ( $this->bail() ) return;
 
-		/** New/Edit **********************************************************/
+		// Overview
+		get_current_screen()->add_help_tab( array(
+			'id'		=> 'overview',
+			'title'		=> __( 'Overview', 'bbpress' ),
+			'content'	=>
+				'<p>' . __( 'This screen provides access to all of your replies. You can customize the display of this screen to suit your workflow.', 'bbpress' ) . '</p>'
+		) );
 
-		$bbp_contextual_help[] = __( 'The reply title field and the big reply editing area are fixed in place, but you can reposition all the other boxes using drag and drop, and can minimize or expand them by clicking the title bar of the box. Use the Screen Options tab to unhide more boxes (Reply Attributes, Slug) or to choose a 1- or 2-column layout for this screen.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>Title</strong> - Enter a title for your reply. After you enter a title, you will see the permalink below, which you can edit.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>Post editor</strong> - Enter the text for your reply. There are two modes of editing: Visual and HTML. Choose the mode by clicking on the appropriate tab. Visual mode gives you a WYSIWYG editor. Click the last icon in the row to get a second row of controls. The screen icon just before that allows you to expand the edit box to full screen. The HTML mode allows you to enter raw HTML along with your forum text. You can insert media files by clicking the icons above the post editor and following the directions.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>Reply Attributes</strong> - Select the attributes that your reply should have. The Parent Topic dropdown determines the parent topic that the reply belongs to.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>Publish</strong> - The Publish box will allow you to save your reply as Draft or Pending Review. You may Preview your reply before it is published as well. The Visibility will determine whether the reply is Public, Password protected (requiring a password on the site to view) or Private (only the author will have access to it). Replies may be published immediately by clicking the dropdown, or at a specific date and time by clicking the Edit link.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>Revisions</strong> - Revisions show past versions of the saved reply. Each revision can be compared to the current version, or another revision. Revisions can also be restored to the current version.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>For more information:</strong>', 'bbpress' );
-		$bbp_contextual_help[] =
-			'<ul>' .
-				'<li>' . __( '<a href="http://bbpress.org/documentation/">bbPress Documentation</a>', 'bbpress' ) . '</li>' .
-				'<li>' . __( '<a href="http://bbpress.org/forums/">bbPress Support Forums</a>', 'bbpress' ) . '</li>' .
-			'</ul>' ;
+		// Screen Content
+		get_current_screen()->add_help_tab( array(
+			'id'		=> 'screen-content',
+			'title'		=> __( 'Screen Content', 'bbpress' ),
+			'content'	=>
+				'<p>' . __( 'You can customize the display of this screen&#8217;s contents in a number of ways:', 'bbpress' ) . '</p>' .
+				'<ul>' .
+					'<li>' . __( 'You can hide/display columns based on your needs and decide how many replies to list per screen using the Screen Options tab.',                                                                                                                                                                          'bbpress' ) . '</li>' .
+					'<li>' . __( 'You can filter the list of replies by reply status using the text links in the upper left to show All, Published, Draft, or Trashed replies. The default view is to show all replies.',                                                                                                                   'bbpress' ) . '</li>' .
+					'<li>' . __( 'You can view replies in a simple title list or with an excerpt. Choose the view you prefer by clicking on the icons at the top of the list on the right.',                                                                                                                                             'bbpress' ) . '</li>' .
+					'<li>' . __( 'You can refine the list to show only replies in a specific category or from a specific month by using the dropdown menus above the replies list. Click the Filter button after making your selection. You also can refine the list by clicking on the reply author, category or tag in the replies list.', 'bbpress' ) . '</li>' .
+				'</ul>'
+		) );
 
-		// Wrap each help item in paragraph tags
-		foreach( $bbp_contextual_help as $paragraph )
-			$contextual_help .= '<p>' . $paragraph . '</p>';
+		// Available Actions
+		get_current_screen()->add_help_tab( array(
+			'id'		=> 'action-links',
+			'title'		=> __( 'Available Actions', 'bbpress' ),
+			'content'	=>
+				'<p>' . __( 'Hovering over a row in the replies list will display action links that allow you to manage your reply. You can perform the following actions:', 'bbpress' ) . '</p>' .
+				'<ul>' .
+					'<li>' . __( '<strong>Edit</strong> takes you to the editing screen for that reply. You can also reach that screen by clicking on the reply title.',                                                                                 'bbpress' ) . '</li>' .
+					//'<li>' . __( '<strong>Quick Edit</strong> provides inline access to the metadata of your reply, allowing you to update reply details without leaving this screen.',                                                                  'bbpress' ) . '</li>' .
+					'<li>' . __( '<strong>Trash</strong> removes your reply from this list and places it in the trash, from which you can permanently delete it.',                                                                                       'bbpress' ) . '</li>' .
+					'<li>' . __( '<strong>Spam</strong> removes your reply from this list and places it in the spam queue, from which you can permanently delete it.',                                                                                   'bbpress' ) . '</li>' .
+					'<li>' . __( '<strong>Preview</strong> will show you what your draft reply will look like if you publish it. View will take you to your live site to view the reply. Which link is available depends on your reply&#8217;s status.', 'bbpress' ) . '</li>' .
+				'</ul>'
+		) );
 
-		// Add help
-		add_contextual_help( bbp_get_reply_post_type(), $contextual_help );
+		// Bulk Actions
+		get_current_screen()->add_help_tab( array(
+			'id'		=> 'bulk-actions',
+			'title'		=> __( 'Bulk Actions', 'bbpress' ),
+			'content'	=>
+				'<p>' . __( 'You can also edit or move multiple replies to the trash at once. Select the replies you want to act on using the checkboxes, then select the action you want to take from the Bulk Actions menu and click Apply.',           'bbpress' ) . '</p>' .
+				'<p>' . __( 'When using Bulk Edit, you can change the metadata (categories, author, etc.) for all selected replies at once. To remove a reply from the grouping, just click the x next to its name in the Bulk Edit area that appears.', 'bbpress' ) . '</p>'
+		) );
 
-		// Reset
-		$contextual_help = $bbp_contextual_help = '';
+		// Help Sidebar
+		get_current_screen()->set_help_sidebar(
+			'<p><strong>' . __( 'For more information:', 'bbpress' ) . '</strong></p>' .
+			'<p>' . __( '<a href="http://bbpress.org/documentation/" target="_blank">bbPress Documentation</a>', 'bbpress' ) . '</p>' .
+			'<p>' . __( '<a href="http://bbpress.org/forums/" target="_blank">bbPress Support Forums</a>',       'bbpress' ) . '</p>'
+		);
+	}
 
-		/** Post Rows *********************************************************/
+	/**
+	 * Contextual help for bbPress reply edit page
+	 *
+	 * @since bbPress (r3119)
+	 * @uses get_current_screen()
+	 */
+	public function new_help() {
 
-		$bbp_contextual_help[] = __( 'This screen displays the replies created on your site.', 'bbpress' );
-		$bbp_contextual_help[] = __( 'You can customize the display of this screen in a number of ways:', 'bbpress' );
-		$bbp_contextual_help[] =
-			'<ul>' .
-				'<li>' . __( 'You can hide/display columns based on your needs (Forum, Topic, Author, and Created) and decide how many replies to list per screen using the Screen Options tab.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'You can filter the list of replies by reply status using the text links in the upper left to show All, Published, Pending Review, Draft, or Trashed topics. The default view is to show all replies.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'You can view replies in a simple title list or with an excerpt. Choose the view you prefer by clicking on the icons at the top of the list on the right.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'You can refine the list to show only replies from a specific month by using the dropdown menus above the replies list. Click the Filter button after making your selection.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'You can also show only replies from a specific parent forum by using the parent forum dropdown above the replies list and selecting the parent forum. Click the Filter button after making your selection.', 'bbpress' ) . '</li>' .
-			'</ul>';
+		if ( $this->bail() ) return;
 
-		$bbp_contextual_help[] = __( 'Hovering over a row in the replies list will display action links that allow you to manage your reply. You can perform the following actions:', 'bbpress' );
-		$bbp_contextual_help[] =
-			'<ul>' .
-				'<li>' . __( 'Edit takes you to the editing screen for that reply. You can also reach that screen by clicking on the reply title.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'Trash removes your reply from this list and places it in the trash, from which you can permanently delete it.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'View will take you to your live reply to view the reply.', 'bbpress' ) . '</li>' .
-				'<li>' . __( 'Spam will mark the topic as spam, preventing further replies to it and removing it from the site&rsquo;s public view.', 'bbpress' ) . '</li>' .
-			'</ul>';
+		$customize_display = '<p>' . __( 'The title field and the big reply editing Area are fixed in place, but you can reposition all the other boxes using drag and drop, and can minimize or expand them by clicking the title bar of each box. Use the Screen Options tab to unhide more boxes (Excerpt, Send Trackbacks, Custom Fields, Discussion, Slug, Author) or to choose a 1- or 2-column layout for this screen.', 'bbpress' ) . '</p>';
 
-		$bbp_contextual_help[] = __( 'You can also edit multiple replies at once. Select the replies you want to edit using the checkboxes, select Edit from the Bulk Actions menu and click Apply. You will be able to change the metadata for all selected replies at once. To remove a reply from the grouping, just click the x next to its name in the Bulk Edit area that appears.', 'bbpress' );
-		$bbp_contextual_help[] = __( 'The Bulk Actions menu may also be used to delete multiple replies at once. Select Delete from the dropdown after making your selection.', 'bbpress' );
-		$bbp_contextual_help[] = __( '<strong>For more information:</strong>', 'bbpress' );
-		$bbp_contextual_help[] =
-			'<ul>' .
-				'<li>' . __( '<a href="http://bbpress.org/documentation/">bbPress Documentation</a>', 'bbpress' ) . '</li>' .
-				'<li>' . __( '<a href="http://bbpress.org/forums/">bbPress Support Forums</a>', 'bbpress', 'bbpress' ) . '</li>' .
-			'</ul>';
+		get_current_screen()->add_help_tab( array(
+			'id'      => 'customize-display',
+			'title'   => __( 'Customizing This Display', 'bbpress' ),
+			'content' => $customize_display,
+		) );
 
-		// Wrap each help item in paragraph tags
-		foreach( $bbp_contextual_help as $paragraph )
-			$contextual_help .= '<p>' . $paragraph . '</p>';
+		get_current_screen()->add_help_tab( array(
+			'id'      => 'title-reply-editor',
+			'title'   => __( 'Title and Reply Editor', 'bbpress' ),
+			'content' =>
+				'<p>' . __( '<strong>Title</strong> - Enter a title for your reply. After you enter a title, you&#8217;ll see the permalink below, which you can edit.', 'bbpress' ) . '</p>' .
+				'<p>' . __( '<strong>Reply Editor</strong> - Enter the text for your reply. There are two modes of editing: Visual and HTML. Choose the mode by clicking on the appropriate tab. Visual mode gives you a WYSIWYG editor. Click the last icon in the row to get a second row of controls. The HTML mode allows you to enter raw HTML along with your reply text. You can insert media files by clicking the icons above the reply editor and following the directions. You can go to the distraction-free writing screen via the Fullscreen icon in Visual mode (second to last in the top row) or the Fullscreen button in HTML mode (last in the row). Once there, you can make buttons visible by hovering over the top area. Exit Fullscreen back to the regular reply editor.', 'bbpress' ) . '</p>'
+		) );
 
-		// Add help
-		add_contextual_help( 'edit-' . bbp_get_reply_post_type(), $contextual_help );
+		$publish_box = '<p>' . __( '<strong>Publish</strong> - You can set the terms of publishing your reply in the Publish box. For Status, Visibility, and Publish (immediately), click on the Edit link to reveal more options. Visibility includes options for password-protecting a reply or making it stay at the top of your blog indefinitely (sticky). Publish (immediately) allows you to set a future or past date and time, so you can schedule a reply to be published in the future or backdate a reply.', 'bbpress' ) . '</p>';
+
+		if ( current_theme_supports( 'reply-formats' ) && reply_type_supports( 'reply', 'reply-formats' ) ) {
+			$publish_box .= '<p>' . __( '<strong>reply Format</strong> - This designates how your theme will display a specific reply. For example, you could have a <em>standard</em> blog reply with a title and paragraphs, or a short <em>aside</em> that omits the title and contains a short text blurb. Please refer to the Codex for <a href="http://codex.wordpress.org/Post_Formats#Supported_Formats">descriptions of each reply format</a>. Your theme could enable all or some of 10 possible formats.', 'bbpress' ) . '</p>';
+		}
+
+		if ( current_theme_supports( 'reply-thumbnails' ) && reply_type_supports( 'reply', 'thumbnail' ) ) {
+			$publish_box .= '<p>' . __( '<strong>Featured Image</strong> - This allows you to associate an image with your reply without inserting it. This is usually useful only if your theme makes use of the featured image as a reply thumbnail on the home page, a custom header, etc.', 'bbpress' ) . '</p>';
+		}
+
+		get_current_screen()->add_help_tab( array(
+			'id'      => 'reply-attributes',
+			'title'   => __( 'Reply Attributes', 'bbpress' ),
+			'content' =>
+				'<p>' . __( 'Select the attributes that your reply should have:', 'bbpress' ) . '</p>' .
+				'<ul>' .
+					'<li>' . __( '<strong>Forum</strong> dropdown determines the parent forum that the reply belongs to. Select the forum, or leave the default (Use Forum of Topic) to post the reply in forum of the topic.', 'bbpress' ) . '</li>' .
+					'<li>' . __( '<strong>Topic</strong> determines the parent topic that the reply belongs to.', 'bbpress' ) . '</li>' .
+				'</ul>'
+		) );
+
+		get_current_screen()->add_help_tab( array(
+			'id'      => 'publish-box',
+			'title'   => __( 'Publish Box', 'bbpress' ),
+			'content' => $publish_box,
+		) );
+
+		get_current_screen()->add_help_tab( array(
+			'id'      => 'discussion-settings',
+			'title'   => __( 'Discussion Settings', 'bbpress' ),
+			'content' =>
+				'<p>' . __( '<strong>Send Trackbacks</strong> - Trackbacks are a way to notify legacy blog systems that you&#8217;ve linked to them. Enter the URL(s) you want to send trackbacks. If you link to other WordPress sites they&#8217;ll be notified automatically using pingbacks, and this field is unnecessary.', 'bbpress' ) . '</p>' .
+				'<p>' . __( '<strong>Discussion</strong> - You can turn comments and pings on or off, and if there are comments on the reply, you can see them here and moderate them.', 'bbpress' ) . '</p>'
+		) );
+
+		get_current_screen()->set_help_sidebar(
+			'<p><strong>' . __( 'For more information:', 'bbpress' ) . '</strong></p>' .
+			'<p>' . __( '<a href="http://bbpress.org/documentation/" target="_blank">bbPress Documentation</a>', 'bbpress' ) . '</p>' .
+			'<p>' . __( '<a href="http://bbpress.org/forums/" target="_blank">bbPress Support Forums</a>',       'bbpress' ) . '</p>'
+		);
 	}
 
 	/**
@@ -184,7 +257,10 @@ class BBP_Replies_Admin {
 	 * @uses add_meta_box() To add the metabox
 	 * @uses do_action() Calls 'bbp_reply_attributes_metabox'
 	 */
-	function reply_attributes_metabox() {
+	public function reply_attributes_metabox() {
+
+		if ( $this->bail() ) return;
+
 		add_meta_box (
 			'bbp_reply_attributes',
 			__( 'Reply Attributes', 'bbpress' ),
@@ -209,7 +285,9 @@ class BBP_Replies_Admin {
 	 *                    reply id and parent id
 	 * @return int Parent id
 	 */
-	function reply_attributes_metabox_save( $reply_id ) {
+	public function reply_attributes_metabox_save( $reply_id ) {
+
+		if ( $this->bail() ) return $reply_id;
 
 		// Bail if doing an autosave
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
@@ -223,9 +301,9 @@ class BBP_Replies_Admin {
 		if ( empty( $_POST['action'] ) )
 			return $reply_id;
 
-		// Bail if post_type is not a reply
-		if ( get_post_type( $reply_id ) != $this->post_type )
-			return;
+		// Nonce check
+		if ( empty( $_POST['bbp_reply_metabox'] ) || !wp_verify_nonce( $_POST['bbp_reply_metabox'], 'bbp_reply_metabox_save' ) )
+			return $reply_id;
 
 		// Current user cannot edit this reply
 		if ( !current_user_can( 'edit_reply', $reply_id ) )
@@ -259,11 +337,12 @@ class BBP_Replies_Admin {
 	 * @uses do_action() Calls 'bbp_author_metabox' with the topic/reply
 	 *                    id
 	 */
-	function author_metabox() {
-		global $current_screen;
+	public function author_metabox() {
+
+		if ( $this->bail() ) return;
 
 		// Bail if post_type is not a reply
-		if ( ( empty( $_GET['action'] ) || ( 'edit' != $_GET['action'] ) ) || ( get_post_type() != $this->post_type ) )
+		if ( empty( $_GET['action'] ) || ( 'edit' != $_GET['action'] ) )
 			return;
 
 		// Add the metabox
@@ -295,7 +374,9 @@ class BBP_Replies_Admin {
 	 *                    anonymous data
 	 * @return int Topic or reply id
 	 */
-	function author_metabox_save( $post_id ) {
+	public function author_metabox_save( $post_id ) {
+
+		if ( $this->bail() ) return $post_id;
 
 		// Bail if no post_id
 		if ( empty( $post_id ) )
@@ -308,10 +389,6 @@ class BBP_Replies_Admin {
 		// Bail if doing an autosave
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
 			return $post_id;
-
-		// Bail if post_type is not a topic or reply
-		if ( get_post_type( $post_id ) != $this->post_type )
-			return;
 
 		// Bail if user cannot edit replies or reply is not anonymous
 		if ( !current_user_can( 'edit_reply', $post_id ) )
@@ -339,56 +416,57 @@ class BBP_Replies_Admin {
 	 * @uses sanitize_html_class() To sanitize the classes
 	 * @uses do_action() Calls 'bbp_admin_head'
 	 */
-	function admin_head() {
+	public function admin_head() {
+		
+		if ( $this->bail() ) return;
 
-		if ( get_post_type() == $this->post_type ) : ?>
+		?>
 
-			<style type="text/css" media="screen">
-			/*<![CDATA[*/
+		<style type="text/css" media="screen">
+		/*<![CDATA[*/
 
-				.column-bbp_forum_topic_count,
-				.column-bbp_forum_reply_count,
-				.column-bbp_topic_reply_count,
-				.column-bbp_topic_voice_count {
-					width: 8% !important;
-				}
+			.column-bbp_forum_topic_count,
+			.column-bbp_forum_reply_count,
+			.column-bbp_topic_reply_count,
+			.column-bbp_topic_voice_count {
+				width: 8% !important;
+			}
 
-				.column-author,
-				.column-bbp_reply_author,
-				.column-bbp_topic_author {
-					width: 10% !important;
-				}
+			.column-author,
+			.column-bbp_reply_author,
+			.column-bbp_topic_author {
+				width: 10% !important;
+			}
 
-				.column-bbp_topic_forum,
-				.column-bbp_reply_forum,
-				.column-bbp_reply_topic {
-					width: 10% !important;
-				}
+			.column-bbp_topic_forum,
+			.column-bbp_reply_forum,
+			.column-bbp_reply_topic {
+				width: 10% !important;
+			}
 
-				.column-bbp_forum_freshness,
-				.column-bbp_topic_freshness {
-					width: 10% !important;
-				}
+			.column-bbp_forum_freshness,
+			.column-bbp_topic_freshness {
+				width: 10% !important;
+			}
 
-				.column-bbp_forum_created,
-				.column-bbp_topic_created,
-				.column-bbp_reply_created {
-					width: 15% !important;
-				}
+			.column-bbp_forum_created,
+			.column-bbp_topic_created,
+			.column-bbp_reply_created {
+				width: 15% !important;
+			}
 
-				.status-closed {
-					background-color: #eaeaea;
-				}
+			.status-closed {
+				background-color: #eaeaea;
+			}
 
-				.status-spam {
-					background-color: #faeaea;
-				}
+			.status-spam {
+				background-color: #faeaea;
+			}
 
-			/*]]>*/
-			</style>
+		/*]]>*/
+		</style>
 
-		<?php endif;
-
+		<?php
 	}
 
 	/**
@@ -410,9 +488,11 @@ class BBP_Replies_Admin {
 	 * @uses do_action() Calls 'bbp_toggle_reply_admin' with success, post
 	 *                    data, action and message
 	 * @uses add_query_arg() To add custom args to the url
-	 * @uses wp_redirect() Redirect the page to custom url
+	 * @uses wp_safe_redirect() Redirect the page to custom url
 	 */
-	function toggle_reply() {
+	public function toggle_reply() {
+
+		if ( $this->bail() ) return;
 
 		// Only proceed if GET is a reply toggle action
 		if ( 'GET' == $_SERVER['REQUEST_METHOD'] && !empty( $_GET['action'] ) && in_array( $_GET['action'], array( 'bbp_toggle_reply_spam' ) ) && !empty( $_GET['reply_id'] ) ) {
@@ -421,7 +501,9 @@ class BBP_Replies_Admin {
 			$success   = false;                      // Flag
 			$post_data = array( 'ID' => $reply_id ); // Prelim array
 
-			if ( !$reply = bbp_get_reply( $reply_id ) ) // Which reply?
+			// Get reply and die if empty
+			$reply = bbp_get_reply( $reply_id );
+			if ( empty( $reply ) ) // Which reply?
 				wp_die( __( 'The reply was not found!', 'bbpress' ) );
 
 			if ( !current_user_can( 'moderate', $reply->ID ) ) // What is the user doing here?
@@ -449,7 +531,7 @@ class BBP_Replies_Admin {
 
 			// Redirect back to the reply
 			$redirect = add_query_arg( $message, remove_query_arg( array( 'action', 'reply_id' ) ) );
-			wp_redirect( $redirect );
+			wp_safe_redirect( $redirect );
 
 			// For good measure
 			exit();
@@ -470,7 +552,9 @@ class BBP_Replies_Admin {
 	 * @uses apply_filters() Calls 'bbp_toggle_reply_notice_admin' with
 	 *                        message, reply id, notice and is it a failure
 	 */
-	function toggle_reply_notice() {
+	public function toggle_reply_notice() {
+
+		if ( $this->bail() ) return;
 
 		// Only proceed if GET is a reply toggle action
 		if ( 'GET' == $_SERVER['REQUEST_METHOD'] && !empty( $_GET['bbp_reply_toggle_notice'] ) && in_array( $_GET['bbp_reply_toggle_notice'], array( 'spammed', 'unspammed' ) ) && !empty( $_GET['reply_id'] ) ) {
@@ -479,7 +563,12 @@ class BBP_Replies_Admin {
 			$is_failure = !empty( $_GET['failed'] ) ? true : false; // Was that a failure?
 
 			// Empty? No reply?
-			if ( empty( $notice ) || empty( $reply_id ) || !$reply = bbp_get_reply( $reply_id ) )
+			if ( empty( $notice ) || empty( $reply_id ) )
+				return;
+
+			// Get reply and bail if empty
+			$reply = bbp_get_reply( $reply_id );
+			if ( empty( $reply ) )
 				return;
 
 			$reply_title = esc_html( bbp_get_reply_title( $reply->ID ) );
@@ -517,7 +606,10 @@ class BBP_Replies_Admin {
 	 *                        the columns
 	 * @return array $columns bbPress reply columns
 	 */
-	function replies_column_headers( $columns ) {
+	public function replies_column_headers( $columns ) {
+
+		if ( $this->bail() ) return $columns;
+
 		$columns = array(
 			'cb'                => '<input type="checkbox" />',
 			'title'             => __( 'Title',   'bbpress' ),
@@ -558,7 +650,9 @@ class BBP_Replies_Admin {
 	 * @uses do_action() Calls 'bbp_admin_replies_column_data' with the
 	 *                    column and reply id
 	 */
-	function replies_column_data( $column, $reply_id ) {
+	public function replies_column_data( $column, $reply_id ) {
+
+		if ( $this->bail() ) return;
 
 		// Get topic ID
 		$topic_id = bbp_get_reply_topic_id( $reply_id );
@@ -573,8 +667,10 @@ class BBP_Replies_Admin {
 				if ( !empty( $topic_id ) ) {
 
 					// Topic Title
-					if ( !$topic_title = bbp_get_topic_title( $topic_id ) )
+					$topic_title = bbp_get_topic_title( $topic_id );
+					if ( empty( $topic_title ) ) {
 						$topic_title = __( 'No Topic', 'bbpress' );
+					}
 
 					// Output the title
 					echo $topic_title;
@@ -597,8 +693,10 @@ class BBP_Replies_Admin {
 				if ( !empty( $reply_forum_id ) ) {
 
 					// Forum Title
-					if ( !$forum_title = bbp_get_forum_title( $reply_forum_id ) )
+					$forum_title = bbp_get_forum_title( $reply_forum_id );
+					if ( empty( $forum_title ) ) {
 						$forum_title = __( 'No Forum', 'bbpress' );
+					}
 
 					// Alert capable users of reply forum mismatch
 					if ( $reply_forum_id != $topic_forum_id ) {
@@ -664,44 +762,44 @@ class BBP_Replies_Admin {
 	 * @uses get_delete_post_link() To get the delete post link of the reply
 	 * @return array $actions Actions
 	 */
-	function replies_row_actions( $actions, $reply ) {
+	public function replies_row_actions( $actions, $reply ) {
 
-		if ( bbp_get_reply_post_type() == $reply->post_type ) {
-			unset( $actions['inline hide-if-no-js'] );
+		if ( $this->bail() ) return $actions;
 
-			// Reply view links to topic
-			$actions['view'] = '<a href="' . bbp_get_reply_url( $reply->ID ) . '" title="' . esc_attr( sprintf( __( 'View &#8220;%s&#8221;', 'bbpress' ), bbp_get_reply_title( $reply->ID ) ) ) . '" rel="permalink">' . __( 'View', 'bbpress' ) . '</a>';
+		unset( $actions['inline hide-if-no-js'] );
 
-			// User cannot view replies in trash
-			if ( ( bbp_get_trash_status_id() == $reply->post_status ) && !current_user_can( 'view_trash' ) )
-				unset( $actions['view'] );
+		// Reply view links to topic
+		$actions['view'] = '<a href="' . bbp_get_reply_url( $reply->ID ) . '" title="' . esc_attr( sprintf( __( 'View &#8220;%s&#8221;', 'bbpress' ), bbp_get_reply_title( $reply->ID ) ) ) . '" rel="permalink">' . __( 'View', 'bbpress' ) . '</a>';
 
-			// Only show the actions if the user is capable of viewing them
-			if ( current_user_can( 'moderate', $reply->ID ) ) {
-				if ( in_array( $reply->post_status, array( bbp_get_public_status_id(), bbp_get_spam_status_id() ) ) ) {
-					$spam_uri  = esc_url( wp_nonce_url( add_query_arg( array( 'reply_id' => $reply->ID, 'action' => 'bbp_toggle_reply_spam' ), remove_query_arg( array( 'bbp_reply_toggle_notice', 'reply_id', 'failed', 'super' ) ) ), 'spam-reply_'  . $reply->ID ) );
-					if ( bbp_is_reply_spam( $reply->ID ) ) {
-						$actions['spam'] = '<a href="' . $spam_uri . '" title="' . esc_attr__( 'Mark the reply as not spam', 'bbpress' ) . '">' . __( 'Not spam', 'bbpress' ) . '</a>';
-					} else {
-						$actions['spam'] = '<a href="' . $spam_uri . '" title="' . esc_attr__( 'Mark this reply as spam',    'bbpress' ) . '">' . __( 'Spam',     'bbpress' ) . '</a>';
-					}
+		// User cannot view replies in trash
+		if ( ( bbp_get_trash_status_id() == $reply->post_status ) && !current_user_can( 'view_trash' ) )
+			unset( $actions['view'] );
+
+		// Only show the actions if the user is capable of viewing them
+		if ( current_user_can( 'moderate', $reply->ID ) ) {
+			if ( in_array( $reply->post_status, array( bbp_get_public_status_id(), bbp_get_spam_status_id() ) ) ) {
+				$spam_uri  = esc_url( wp_nonce_url( add_query_arg( array( 'reply_id' => $reply->ID, 'action' => 'bbp_toggle_reply_spam' ), remove_query_arg( array( 'bbp_reply_toggle_notice', 'reply_id', 'failed', 'super' ) ) ), 'spam-reply_'  . $reply->ID ) );
+				if ( bbp_is_reply_spam( $reply->ID ) ) {
+					$actions['spam'] = '<a href="' . $spam_uri . '" title="' . esc_attr__( 'Mark the reply as not spam', 'bbpress' ) . '">' . __( 'Not spam', 'bbpress' ) . '</a>';
+				} else {
+					$actions['spam'] = '<a href="' . $spam_uri . '" title="' . esc_attr__( 'Mark this reply as spam',    'bbpress' ) . '">' . __( 'Spam',     'bbpress' ) . '</a>';
 				}
 			}
+		}
 
-			// Trash
-			if ( current_user_can( 'delete_reply', $reply->ID ) ) {
-				if ( bbp_get_trash_status_id() == $reply->post_status ) {
-					$post_type_object = get_post_type_object( bbp_get_reply_post_type() );
-					$actions['untrash'] = "<a title='" . esc_attr( __( 'Restore this item from the Trash', 'bbpress' ) ) . "' href='" . add_query_arg( array( '_wp_http_referer' => add_query_arg( array( 'post_type' => bbp_get_reply_post_type() ), admin_url( 'edit.php' ) ) ), wp_nonce_url( admin_url( sprintf( $post_type_object->_edit_link . '&amp;action=untrash', $reply->ID ) ), 'untrash-' . $reply->post_type . '_' . $reply->ID ) ) . "'>" . __( 'Restore', 'bbpress' ) . "</a>";
-				} elseif ( EMPTY_TRASH_DAYS ) {
-					$actions['trash'] = "<a class='submitdelete' title='" . esc_attr( __( 'Move this item to the Trash', 'bbpress' ) ) . "' href='" . add_query_arg( array( '_wp_http_referer' => add_query_arg( array( 'post_type' => bbp_get_reply_post_type() ), admin_url( 'edit.php' ) ) ), get_delete_post_link( $reply->ID ) ) . "'>" . __( 'Trash', 'bbpress' ) . "</a>";
-				}
+		// Trash
+		if ( current_user_can( 'delete_reply', $reply->ID ) ) {
+			if ( bbp_get_trash_status_id() == $reply->post_status ) {
+				$post_type_object = get_post_type_object( bbp_get_reply_post_type() );
+				$actions['untrash'] = "<a title='" . esc_attr__( 'Restore this item from the Trash', 'bbpress' ) . "' href='" . add_query_arg( array( '_wp_http_referer' => add_query_arg( array( 'post_type' => bbp_get_reply_post_type() ), admin_url( 'edit.php' ) ) ), wp_nonce_url( admin_url( sprintf( $post_type_object->_edit_link . '&amp;action=untrash', $reply->ID ) ), 'untrash-' . $reply->post_type . '_' . $reply->ID ) ) . "'>" . __( 'Restore', 'bbpress' ) . "</a>";
+			} elseif ( EMPTY_TRASH_DAYS ) {
+				$actions['trash'] = "<a class='submitdelete' title='" . esc_attr__( 'Move this item to the Trash', 'bbpress' ) . "' href='" . add_query_arg( array( '_wp_http_referer' => add_query_arg( array( 'post_type' => bbp_get_reply_post_type() ), admin_url( 'edit.php' ) ) ), get_delete_post_link( $reply->ID ) ) . "'>" . __( 'Trash', 'bbpress' ) . "</a>";
+			}
 
-				if ( bbp_get_trash_status_id() == $reply->post_status || !EMPTY_TRASH_DAYS ) {
-					$actions['delete'] = "<a class='submitdelete' title='" . esc_attr( __( 'Delete this item permanently', 'bbpress' ) ) . "' href='" . add_query_arg( array( '_wp_http_referer' => add_query_arg( array( 'post_type' => bbp_get_reply_post_type() ), admin_url( 'edit.php' ) ) ), get_delete_post_link( $reply->ID, '', true ) ) . "'>" . __( 'Delete Permanently', 'bbpress' ) . "</a>";
-				} elseif ( bbp_get_spam_status_id() == $reply->post_status ) {
-					unset( $actions['trash'] );
-				}
+			if ( bbp_get_trash_status_id() == $reply->post_status || !EMPTY_TRASH_DAYS ) {
+				$actions['delete'] = "<a class='submitdelete' title='" . esc_attr__( 'Delete this item permanently', 'bbpress' ) . "' href='" . add_query_arg( array( '_wp_http_referer' => add_query_arg( array( 'post_type' => bbp_get_reply_post_type() ), admin_url( 'edit.php' ) ) ), get_delete_post_link( $reply->ID, '', true ) ) . "'>" . __( 'Delete Permanently', 'bbpress' ) . "</a>";
+			} elseif ( bbp_get_spam_status_id() == $reply->post_status ) {
+				unset( $actions['trash'] );
 			}
 		}
 
@@ -718,17 +816,9 @@ class BBP_Replies_Admin {
 	 * @uses bbp_dropdown() To generate a forum dropdown
 	 * @return bool False. If post type is not topic or reply
 	 */
-	function filter_dropdown() {
+	public function filter_dropdown() {
 
-		// Bail if not viewing the topics list
-		if (
-				// post_type exists in _GET
-				empty( $_GET['post_type'] ) ||
-
-				// post_type is reply or topic type
-				( $_GET['post_type'] != $this->post_type )
-			)
-			return;
+		if ( $this->bail() ) return;
 
 		// Add Empty Spam button
 		if ( !empty( $_GET['post_status'] ) && ( bbp_get_spam_status_id() == $_GET['post_status'] ) && current_user_can( 'moderate' ) ) {
@@ -758,26 +848,9 @@ class BBP_Replies_Admin {
 	 * @uses bbp_get_reply_post_type() To get the reply post type
 	 * @return array Processed Query Vars
 	 */
-	function filter_post_rows( $query_vars ) {
-		global $pagenow;
+	public function filter_post_rows( $query_vars ) {
 
-		// Avoid poisoning other requests
-		if (
-				// Only look in admin
-				!is_admin()                 ||
-
-				// Make sure the current page is for post rows
-				( 'edit.php' != $pagenow  ) ||
-
-				// Make sure we're looking for a post_type
-				empty( $_GET['post_type'] ) ||
-
-				// Make sure we're looking at bbPress topics
-				( $_GET['post_type'] != $this->post_type )
-			)
-
-			// We're in no shape to filter anything, so return
-			return $query_vars;
+		if ( $this->bail() ) return $query_vars;
 
 		// Add post_parent query_var if one is present
 		if ( !empty( $_GET['bbp_forum_id'] ) ) {
@@ -794,9 +867,7 @@ class BBP_Replies_Admin {
 	 *
 	 * @since bbPress (r3080)
 	 *
-	 * @global WP_Query $post
 	 * @global int $post_ID
-	 * @uses get_post_type()
 	 * @uses bbp_get_topic_permalink()
 	 * @uses wp_post_revision_title()
 	 * @uses esc_url()
@@ -806,21 +877,23 @@ class BBP_Replies_Admin {
 	 *
 	 * @return array
 	 */
-	function updated_messages( $messages ) {
-		global $post, $post_ID;
+	public function updated_messages( $messages ) {
+		global $post_ID;
 
-		if ( get_post_type( $post_ID ) != $this->post_type )
-			return $messages;
+		if ( $this->bail() ) return $messages;
 
 		// URL for the current topic
 		$topic_url = bbp_get_topic_permalink( bbp_get_reply_topic_id( $post_ID ) );
+		
+		// Current reply's post_date
+		$post_date = bbp_get_global_post_field( 'post_date', 'raw' );
 
 		// Messages array
 		$messages[$this->post_type] = array(
 			0 =>  '', // Left empty on purpose
 
 			// Updated
-			1 =>  sprintf( __( 'Reply updated. <a href="%s">View topic</a>' ), $topic_url ),
+			1 =>  sprintf( __( 'Reply updated. <a href="%s">View topic</a>', 'bbpress' ), $topic_url ),
 
 			// Custom field updated
 			2 => __( 'Custom field updated.', 'bbpress' ),
@@ -849,8 +922,8 @@ class BBP_Replies_Admin {
 			// Reply scheduled
 			9 => sprintf( __( 'Reply scheduled for: <strong>%1$s</strong>. <a target="_blank" href="%2$s">Preview topic</a>', 'bbpress' ),
 					// translators: Publish box date format, see http://php.net/date
-					date_i18n( __( 'M j, Y @ G:i' ),
-					strtotime( $post->post_date ) ),
+					date_i18n( __( 'M j, Y @ G:i', 'bbpress' ),
+					strtotime( $post_date ) ),
 					$topic_url ),
 
 			// Reply draft updated
@@ -865,17 +938,13 @@ endif; // class_exists check
 /**
  * Setup bbPress Replies Admin
  *
+ * This is currently here to make hooking and unhooking of the admin UI easy.
+ * It could use dependency injection in the future, but for now this is easier.
+ * 
  * @since bbPress (r2596)
  *
  * @uses BBP_Replies_Admin
  */
 function bbp_admin_replies() {
-	global $bbp;
-
-	// Bail if bbPress is not loaded
-	if ( 'bbPress' !== get_class( $bbp ) ) return;
-
-	$bbp->admin->replies = new BBP_Replies_Admin();
+	bbpress()->admin->replies = new BBP_Replies_Admin();
 }
-
-?>

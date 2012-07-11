@@ -99,21 +99,3 @@ class BBP_Users_Admin {
 	function user_profile_forums( $profileuser ) { }
 }
 endif; // class exists
-
-/**
- * Setup bbPress Users Admin
- *
- * @since bbPress (r2596)
- *
- * @uses BBP_Replies_Admin
- */
-function bbp_users_admin() {
-	global $bbp;
-
-	// Bail if bbPress is not loaded
-	if ( 'bbPress' !== get_class( $bbp ) ) return;
-
-	$bbp->admin->users = new BBP_Users_Admin();
-}
-
-?>

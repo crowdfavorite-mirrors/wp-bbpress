@@ -31,7 +31,7 @@
 
 			<?php do_action( 'bbp_theme_before_reply_author_details' ); ?>
 
-			<?php bbp_reply_author_link( array( 'sep' => '<br />' ) ); ?>
+			<?php bbp_reply_author_link( array( 'sep' => '<br />', 'show_role' => true ) ); ?>
 
 			<?php if ( is_super_admin() ) : ?>
 
@@ -49,11 +49,11 @@
 
 		<td class="bbp-reply-content">
 
-			<?php do_action( 'bbp_theme_after_reply_content' ); ?>
+			<?php do_action( 'bbp_theme_before_reply_content' ); ?>
 
 			<?php bbp_reply_content(); ?>
 
-			<?php do_action( 'bbp_theme_before_reply_content' ); ?>
+			<?php do_action( 'bbp_theme_after_reply_content' ); ?>
 
 		</td>
 

@@ -9,12 +9,14 @@
 
 ?>
 
+<div id="bbpress-forums">
+	
 	<?php do_action( 'bbp_template_notices' );
 
 	// Profile details
-	bbp_get_template_part( 'bbpress/user', 'details' );
+	bbp_get_template_part( 'user', 'details' );
 
 	// User edit form
-	bbp_get_template_part( 'bbpress/form', 'user-edit' );
+	bbp_get_template_part( 'form', 'user-edit' ); ?>
 
-?>
+</div>

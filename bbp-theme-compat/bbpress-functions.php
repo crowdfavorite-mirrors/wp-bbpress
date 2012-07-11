@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Functions of bbPress's Twenty Ten theme
+ * Functions of bbPress's Default theme
  *
  * @package bbPress
- * @subpackage BBP_Twenty_Ten
- * @since Twenty Ten 1.1
+ * @subpackage BBP_Theme_Compat
+ * @since bbPress (r3732)
  */
 
 // Exit if accessed directly
@@ -13,30 +13,33 @@ if ( !defined( 'ABSPATH' ) ) exit;
 
 /** Theme Setup ***************************************************************/
 
-if ( !class_exists( 'BBP_Twenty_Ten' ) ) :
+if ( !class_exists( 'BBP_Default' ) ) :
+
 /**
- * Loads bbPress Twenty Ten Theme functionality
- * 
- * Usually functions.php contains a few functions wrapped in function_exisits()
- * checks. Since bbp-twenty-ten is intended to be used both as a child theme and
- * for Theme Compatibility, we've moved everything into one convenient class
- * that can be copied or extended.
- * 
+ * Loads bbPress Default Theme functionality
+ *
+ * This is not a real theme by WordPress standards, and is instead used as the
+ * fallback for any WordPress theme that does not have bbPress templates in it.
+ *
+ * To make your custom theme bbPress compatible and customize the templates, you
+ * can copy these files into your theme without needing to merge anything
+ * together; bbPress should safely handle the rest.
+ *
  * See @link BBP_Theme_Compat() for more.
  *
- * @since bbPress (r3277)
+ * @since bbPress (r3732)
  *
  * @package bbPress
- * @subpackage BBP_Twenty_Ten
+ * @subpackage BBP_Theme_Compat
  */
-class BBP_Twenty_Ten extends BBP_Theme_Compat {
+class BBP_Default extends BBP_Theme_Compat {
 
 	/** Functions *************************************************************/
 
 	/**
-	 * The main bbPress (Twenty Ten) Loader
+	 * The main bbPress (Default) Loader
 	 *
-	 * @since bbPress (r3277)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses BBP_Twenty_Ten::setup_globals()
 	 * @uses BBP_Twenty_Ten::setup_actions()
@@ -49,157 +52,160 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 	/**
 	 * Component global variables
 	 *
-	 * @since bbPress (r2626)
-	 * @access private
+	 * Note that this function is currently commented out in the constructor.
+	 * It will only be used if you copy this file into your current theme and
+	 * uncomment the line above.
 	 *
-	 * @uses plugin_dir_path() To generate bbPress plugin path
-	 * @uses plugin_dir_url() To generate bbPress plugin url
-	 * @uses apply_filters() Calls various filters
+	 * You'll want to customize the values in here, so they match whatever your
+	 * needs are.
+	 *
+	 * @since bbPress (r3732)
+	 * @access private
 	 */
 	private function setup_globals() {
-		global $bbp;
-
-		// Theme name to help identify if it's been extended
-		$this->name = 'bbPress (Twenty Ten)';
-
-		// Version of theme in YYYMMDD format
-		$this->version = '20110921';
-
-		// Setup the theme path
-		$this->dir = $bbp->themes_dir . '/bbp-twentyten';
-
-		// Setup the theme URL
-		$this->url = $bbp->themes_url . '/bbp-twentyten';
+		$bbp           = bbpress();
+		$this->id      = 'default';
+		$this->name    = __( 'bbPress Default', 'bbpress' );
+		$this->version = bbp_get_version();
+		$this->dir     = trailingslashit( $bbp->plugin_dir . 'bbp-theme-compat' );
+		$this->url     = trailingslashit( $bbp->plugin_url . 'bbp-theme-compat' );
 	}
 
 	/**
 	 * Setup the theme hooks
 	 *
-	 * @since bbPress (r3277)
+	 * @since bbPress (r3732)
 	 * @access private
 	 *
 	 * @uses add_filter() To add various filters
 	 * @uses add_action() To add various actions
 	 */
 	private function setup_actions() {
-		
-		// Add theme support for bbPress
-		add_action( 'after_setup_theme',        array( $this, 'add_theme_support'     ) );
 
-		// Enqueue theme CSS
-		add_action( 'bbp_enqueue_scripts',      array( $this, 'enqueue_styles'        ) );
+		/** Scripts ***********************************************************/
 
-		// Enqueue theme JS
-		add_action( 'bbp_enqueue_scripts',      array( $this, 'enqueue_scripts'       ) );
+		add_action( 'bbp_enqueue_scripts',      array( $this, 'enqueue_styles'        ) ); // Enqueue theme CSS
+		add_action( 'bbp_enqueue_scripts',      array( $this, 'enqueue_scripts'       ) ); // Enqueue theme JS
+		add_filter( 'bbp_enqueue_scripts',      array( $this, 'localize_topic_script' ) ); // Enqueue theme script localization
+		add_action( 'bbp_head',                 array( $this, 'head_scripts'          ) ); // Output some extra JS in the <head>
+		add_action( 'wp_ajax_dim-favorite',     array( $this, 'ajax_favorite'         ) ); // Handles the ajax favorite/unfavorite
+		add_action( 'wp_ajax_dim-subscription', array( $this, 'ajax_subscription'     ) ); // Handles the ajax subscribe/unsubscribe
 
-		// Enqueue theme script localization
-		add_filter( 'bbp_enqueue_scripts',      array( $this, 'localize_topic_script' ) );
+		/** Template Wrappers *************************************************/
 
-		// Output some extra JS in the <head>
-		add_action( 'bbp_head',                 array( $this, 'head_scripts'          ) );
+		add_action( 'bbp_before_main_content',  array( $this, 'before_main_content'   ) ); // Top wrapper HTML
+		add_action( 'bbp_after_main_content',   array( $this, 'after_main_content'    ) ); // Bottom wrapper HTML
 
-		// Handles the ajax favorite/unfavorite
-		add_action( 'wp_ajax_dim-favorite',     array( $this, 'ajax_favorite'         ) );
+		/** Override **********************************************************/
 
-		// Handles the ajax subscribe/unsubscribe
-		add_action( 'wp_ajax_dim-subscription', array( $this, 'ajax_subscription'     ) );
+		do_action_ref_array( 'bbp_theme_compat_actions', array( &$this ) );
 	}
 
 	/**
-	 * Sets up theme support for bbPress
+	 * Inserts HTML at the top of the main content area to be compatible with
+	 * the Twenty Twelve theme.
 	 *
-	 * Because this theme comes bundled with bbPress template files, we add it
-	 * to the list of things this theme supports. Note that the function
-	 * "add_theme_support()" does not /enable/ theme support, but is instead an
-	 * API for telling WordPress what it can already do on its own.
-	 *
-	 * If you're looking to add bbPress support into your own custom theme, you'll
-	 * want to make sure it includes all of the template files for bbPress, and then
-	 * use: add_theme_support( 'bbpress' ); in your functions.php.
-	 *
-	 * @since bbPress (r2652)
+	 * @since bbPress (r3732)
 	 */
-	public function add_theme_support() {
-		add_theme_support( 'bbpress' );
+	public function before_main_content() {
+	?>
+
+		<div id="container">
+			<div id="content" role="main">
+
+	<?php
 	}
-	
+
+	/**
+	 * Inserts HTML at the bottom of the main content area to be compatible with
+	 * the Twenty Twelve theme.
+	 *
+	 * @since bbPress (r3732)
+	 */
+	public function after_main_content() {
+	?>
+
+			</div><!-- #content -->
+		</div><!-- #container -->
+
+	<?php
+	}
+
 	/**
 	 * Load the theme CSS
 	 *
-	 * @since bbPress (r2652)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses wp_enqueue_style() To enqueue the styles
 	 */
 	public function enqueue_styles() {
 
-		// Right to left
-		if ( is_rtl() ) {
+		// LTR or RTL
+		$file = is_rtl() ? 'css/bbpress-rtl.css' : 'css/bbpress.css';
 
-			// TwentyTen
-			wp_enqueue_style( 'twentyten',     get_template_directory_uri() . '/style.css', '',          $this->version, 'screen' );
-			wp_enqueue_style( 'twentyten-rtl', get_template_directory_uri() . '/rtl.css',   'twentyten', $this->version, 'screen' );
+		// Check child theme
+		if ( file_exists( trailingslashit( get_stylesheet_directory() ) . $file ) ) {
+			$location = trailingslashit( get_stylesheet_directory_uri() );
+			$handle   = 'bbp-child-bbpress';
 
-			// bbPress specific
-			wp_enqueue_style( 'bbp-twentyten-bbpress', get_stylesheet_directory_uri() . '/css/bbpress-rtl.css', 'twentyten-rtl', $this->version, 'screen' );
+		// Check parent theme
+		} elseif ( file_exists( trailingslashit( get_template_directory() ) . $file ) ) {
+			$location = trailingslashit( get_template_directory_uri() );
+			$handle   = 'bbp-parent-bbpress';
 
-		// Left to right
+		// bbPress Theme Compatibility
 		} else {
-
-			// TwentyTen
-			wp_enqueue_style( 'twentyten', get_template_directory_uri() . '/style.css', '', $this->version, 'screen' );
-
-			// bbPress specific
-			wp_enqueue_style( 'bbp-twentyten-bbpress', get_stylesheet_directory_uri() . '/css/bbpress.css', 'twentyten', $this->version, 'screen' );
+			$location = trailingslashit( $this->url );
+			$handle   = 'bbp-default-bbpress';
 		}
+
+		// Enqueue the bbPress styling
+		wp_enqueue_style( $handle, $location . $file, array(), $this->version, 'screen' );
 	}
 
 	/**
 	 * Enqueue the required Javascript files
 	 *
-	 * @since bbPress (r2652)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses bbp_is_single_topic() To check if it's the topic page
-	 * @uses get_stylesheet_directory_uri() To get the stylesheet directory uri
 	 * @uses bbp_is_single_user_edit() To check if it's the profile edit page
 	 * @uses wp_enqueue_script() To enqueue the scripts
 	 */
 	public function enqueue_scripts() {
 
 		if ( bbp_is_single_topic() )
-			wp_enqueue_script( 'bbp_topic', get_stylesheet_directory_uri() . '/js/topic.js', array( 'wp-lists' ), $this->version );
+			wp_enqueue_script( 'bbpress-topic', $this->url . 'js/topic.js', array( 'wp-lists' ), $this->version, true );
 
-		if ( bbp_is_single_user_edit() )
+		elseif ( bbp_is_single_user_edit() )
 			wp_enqueue_script( 'user-profile' );
 	}
-	
+
 	/**
 	 * Put some scripts in the header, like AJAX url for wp-lists
 	 *
-	 * @since bbPress (r2652)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses bbp_is_single_topic() To check if it's the topic page
 	 * @uses admin_url() To get the admin url
 	 * @uses bbp_is_single_user_edit() To check if it's the profile edit page
 	 */
 	public function head_scripts() {
-		if ( bbp_is_single_topic() ) : ?>
-
-		<script type='text/javascript'>
-			/* <![CDATA[ */
-			var ajaxurl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
-			/* ]]> */
-		</script>
-
-		<?php elseif ( bbp_is_single_user_edit() ) : ?>
+	?>
 
 		<script type="text/javascript" charset="utf-8">
+			/* <![CDATA[ */
+			var ajaxurl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
+
+			<?php if ( bbp_is_single_user_edit() ) : ?>
 			if ( window.location.hash == '#password' ) {
 				document.getElementById('pass1').focus();
 			}
+			<?php endif; ?>
+			/* ]]> */
 		</script>
 
-		<?php
-		endif;
+	<?php
 	}
 
 	/**
@@ -207,7 +213,7 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 	 *
 	 * These localizations require information that may not be loaded even by init.
 	 *
-	 * @since bbPress (r2652)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses bbp_is_single_topic() To check if it's the topic page
 	 * @uses is_user_logged_in() To check if user is logged in
@@ -263,13 +269,13 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 			$localizations['subsActive'] = 0;
 		}
 
-		wp_localize_script( 'bbp_topic', 'bbpTopicJS', $localizations );
+		wp_localize_script( 'bbpress-topic', 'bbpTopicJS', $localizations );
 	}
 
 	/**
 	 * Add or remove a topic from a user's favorites
 	 *
-	 * @since bbPress (r2652)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses bbp_get_current_user_id() To get the current user id
 	 * @uses current_user_can() To check if the current user can edit the user
@@ -286,7 +292,9 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 		if ( !current_user_can( 'edit_user', $user_id ) )
 			die( '-1' );
 
-		if ( !$topic = bbp_get_topic( $id ) )
+		$topic = bbp_get_topic( $id );
+
+		if ( empty( $topic ) )
 			die( '0' );
 
 		check_ajax_referer( 'toggle-favorite_' . $topic->ID );
@@ -307,7 +315,7 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 	/**
 	 * Subscribe/Unsubscribe a user from a topic
 	 *
-	 * @since bbPress (r2668)
+	 * @since bbPress (r3732)
 	 *
 	 * @uses bbp_is_subscriptions_active() To check if the subscriptions are active
 	 * @uses bbp_get_current_user_id() To get the current user id
@@ -330,7 +338,9 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 		if ( !current_user_can( 'edit_user', $user_id ) )
 			die( '-1' );
 
-		if ( !$topic = bbp_get_topic( $id ) )
+		$topic = bbp_get_topic( $id );
+
+		if ( empty( $topic ) )
 			die( '0' );
 
 		check_ajax_referer( 'toggle-subscription_' . $topic->ID );
@@ -348,15 +358,5 @@ class BBP_Twenty_Ten extends BBP_Theme_Compat {
 		die( '0' );
 	}
 }
-
-/**
- * Instantiate a new BBP_Twenty_Ten class inside the $bbp global. It is
- * responsible for hooking itself into WordPress where apprpriate.
- */
-if ( 'bbPress' == get_class( $bbp ) ) {
-	$bbp->theme_compat->theme = new BBP_Twenty_Ten();
-}
-
+new BBP_Default();
 endif;
-
-?>
