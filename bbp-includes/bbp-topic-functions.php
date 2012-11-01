@@ -1417,6 +1417,7 @@ function bbp_split_topic_handler() {
 						'post_name'   => false,
 						'post_type'   => bbp_get_topic_post_type(),
 						'post_parent' => $source_topic->post_parent,
+						'menu_order'  => '1',
 						'guid'        => ''
 					);
 
@@ -1441,7 +1442,7 @@ function bbp_split_topic_handler() {
 		}
 	}
 
-	// Bail ir there are errors
+	// Bail if there are errors
 	if ( bbp_has_errors() )
 		return;
 
@@ -1506,16 +1507,34 @@ function bbp_split_topic_handler() {
 	// Make sure there are replies to loop through
 	if ( !empty( $replies ) && !is_wp_error( $replies ) ) {
 
+		// Calculate starting point for reply positions
+		switch ( $split_option ) {
+
+			// Get topic reply count for existing topic
+			case 'existing' :
+				$reply_position = bbp_get_topic_reply_count( $destination_topic->ID );
+				break;
+
+			// Account for new lead topic
+			case 'reply'    :
+				$reply_position = 1;
+				break;
+		}
+
 		// Change the post_parent of each reply to the destination topic id
 		foreach ( $replies as $reply ) {
 
+			// Bump the reply position each iteration through the loop
+			$reply_position++;
+
 			// New reply data
 			$postarr = array(
-				'ID'          => $reply->ID,
-				'post_title'  => sprintf( __( 'Reply To: %s', 'bbpress' ), $destination_topic->post_title ),
-				'post_name'   => false, // will be automatically generated
-				'post_parent' => $destination_topic->ID,
-				'guid'        => ''
+				'ID'            => $reply->ID,
+				'post_title'    => sprintf( __( 'Reply To: %s', 'bbpress' ), $destination_topic->post_title ),
+				'post_name'     => false, // will be automatically generated
+				'post_parent'   => $destination_topic->ID,
+				'post_position' => $reply_position,
+				'guid'          => ''
 			);
 
 			// Update the reply
@@ -1528,18 +1547,30 @@ function bbp_split_topic_handler() {
 			// Do additional actions per split reply
 			do_action( 'bbp_split_topic_reply', $reply->ID, $destination_topic->ID );
 		}
+
+		// Set the last reply ID and freshness
+		$last_reply_id = $reply->ID;
+		$freshness     = $reply->post_date;
+
+	// Set the last reply ID and freshness to the from_reply
+	} else {
+		$last_reply_id = $from_reply->ID;
+		$freshness     = $from_reply->post_date;
 	}
 
 	// It is a new topic and we need to set some default metas to make
 	// the topic display in bbp_has_topics() list
 	if ( 'reply' == $split_option ) {
-		$last_reply_id = ( empty( $reply ) || empty( $reply->ID        ) ) ? 0  : $reply->ID;
-		$freshness     = ( empty( $reply ) || empty( $reply->post_date ) ) ? '' : $reply->post_date;
-
 		bbp_update_topic_last_reply_id   ( $destination_topic->ID, $last_reply_id );
+		bbp_update_topic_last_active_id  ( $destination_topic->ID, $last_reply_id );
 		bbp_update_topic_last_active_time( $destination_topic->ID, $freshness     );
 	}
 
+	// Update source topic ID last active
+	bbp_update_topic_last_reply_id   ( $source_topic->ID );
+	bbp_update_topic_last_active_id  ( $source_topic->ID );
+	bbp_update_topic_last_active_time( $source_topic->ID );
+	
 	/** Successful Split ******************************************************/
 
 	// Update counts, etc...
@@ -2830,21 +2861,17 @@ function bbp_delete_topic( $topic_id = 0 ) {
 	do_action( 'bbp_delete_topic', $topic_id );
 
 	// Topic is being permanently deleted, so its replies gotta go too
-	// @todo remove meta query
-	if ( bbp_has_replies( array(
-		'post_type'      => bbp_get_reply_post_type(),
-		'post_status'    => 'any',
-		'posts_per_page' => -1,
-		'meta_query'     => array( array(
-			'key'        => '_bbp_topic_id',
-			'value'      => $topic_id,
-			'type'       => 'numeric',
-			'compare'    => '='
-		) )
+	if ( $replies = new WP_Query( array(
+		'suppress_filters' => true,
+		'post_type'        => bbp_get_reply_post_type(),
+		'post_status'      => 'any',
+		'post_parent'      => $topic_id,
+		'posts_per_page'   => -1,
+		'nopaging'         => true,
+		'fields'           => 'id=>parent'
 	) ) ) {
-		while ( bbp_replies() ) {
-			bbp_the_reply();
-			wp_delete_post( bbp_get_reply_id(), true );
+		foreach ( $replies->posts as $reply ) {
+			wp_delete_post( $reply->ID, true );
 		}
 	}
 }
@@ -2859,15 +2886,12 @@ function bbp_delete_topic( $topic_id = 0 ) {
  * @uses bbp_get_topic_id() To get the topic id
  * @uses bbp_is_topic() To check if the passed id is a topic
  * @uses do_action() Calls 'bbp_trash_topic' with the topic id
- * @uses bbp_has_replies() To check if the topic has replies
- * @uses bbp_replies() To loop through the replies
- * @uses bbp_the_reply() To set a reply as the current reply in the loop
- * @uses bbp_get_reply_id() To get the reply id
  * @uses wp_trash_post() To trash the reply
  * @uses update_post_meta() To save a list of just trashed replies for future use
  */
 function bbp_trash_topic( $topic_id = 0 ) {
-	$bbp      = bbpress();
+
+	// Validate topic ID
 	$topic_id = bbp_get_topic_id( $topic_id );
 
 	if ( empty( $topic_id ) || !bbp_is_topic( $topic_id ) )
@@ -2876,27 +2900,23 @@ function bbp_trash_topic( $topic_id = 0 ) {
 	do_action( 'bbp_trash_topic', $topic_id );
 
 	// Topic is being trashed, so its replies are trashed too
-	// @todo remove meta query
-	if ( bbp_has_replies( array( 
-		'post_type'      => bbp_get_reply_post_type(),
-		'post_status'    => bbp_get_public_status_id(),
-		'posts_per_page' => -1,
-		'meta_query'     => array( array(
-			'key'        => '_bbp_topic_id',
-			'value'      => $topic_id,
-			'type'       => 'numeric',
-			'compare'    => '='
-		) )
+	if ( $replies = new WP_Query( array(
+		'suppress_filters' => true,
+		'post_type'        => bbp_get_reply_post_type(),
+		'post_status'      => bbp_get_public_status_id(),
+		'post_parent'      => $topic_id,
+		'posts_per_page'   => -1,
+		'nopaging'         => true,
+		'fields'           => 'id=>parent'
 	) ) ) {
 
 		// Prevent debug notices
 		$pre_trashed_replies = array();
 
 		// Loop through replies, trash them, and add them to array
-		while ( bbp_replies() ) {
-			bbp_the_reply();
-			wp_trash_post( $bbp->reply_query->post->ID );
-			$pre_trashed_replies[] = $bbp->reply_query->post->ID;
+		foreach ( $replies->posts as $reply ) {
+			wp_trash_post( $reply->ID );
+			$pre_trashed_replies[] = $reply->ID;
 		}
 
 		// Set a post_meta entry of the replies that were trashed by this action.
