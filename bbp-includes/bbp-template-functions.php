@@ -222,22 +222,37 @@ function bbp_parse_query( $posts_query ) {
 	// It is a user page - We'll also check if it is user edit
 	if ( !empty( $bbp_user ) ) {
 
-		// Not a user_id so try email and slug
-		if ( !is_numeric( $bbp_user ) ) {
+		/**
+		 * This logic is modified by Corwd Favorite (CF) to allow usernames that are numeric 
+		 * (Middlware users) to be searched by slug, and if not found, let search continue
+		 * with the original user ID passed. This now allwos numeric usernames to override
+		 * user IDs.
+		 */
 
-			// Email was passed
-			if ( is_email( $bbp_user ) ) {
-				$bbp_user = get_user_by( 'email', $bbp_user );
+		// If the user is numeric, assign a temporary value
+		if (is_numeric($bbp_user)) {
+			$numeric_user = $bbp_user;
+		}
 
-			// Try nicename
-			} else {
-				$bbp_user = get_user_by( 'slug', $bbp_user );
-			}
+		// Try email and slug
 
-			// If we were successful, set to ID
-			if ( is_object( $bbp_user ) ) {
-				$bbp_user = $bbp_user->ID;
-			}
+		// Email was passed
+		if ( is_email( $bbp_user ) ) {
+			$bbp_user = get_user_by( 'email', $bbp_user );
+
+		// Try nicename
+		} else {
+			$bbp_user = get_user_by( 'slug', $bbp_user );
+		}
+
+		// If we were successful, set to ID
+		if ( is_object( $bbp_user ) ) {
+			$bbp_user = $bbp_user->ID;
+		}
+
+		// If no user was found, reset back to the original numeric ID for the search
+		if (false === $bbp_user and isset($numeric_user)) {
+			$bbp_user = $numeric_user;
 		}
 
 		// Create new user
