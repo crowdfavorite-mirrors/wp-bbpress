@@ -81,6 +81,10 @@ function bbp_set_user_role( $user_id = 0, $new_role = '' ) {
 
 			// Add the new role
 			if ( !empty( $new_role ) ) {
+
+				// Make sure bbPress roles are added
+				bbp_add_forums_roles();
+
 				$user->add_role( $new_role );
 			}
 		}
@@ -94,7 +98,7 @@ function bbp_set_user_role( $user_id = 0, $new_role = '' ) {
 }
 
 /**
- * Return a user's main role
+ * Return a user's forums role
  *
  * @since bbPress (r3860)
  *
@@ -107,7 +111,7 @@ function bbp_set_user_role( $user_id = 0, $new_role = '' ) {
 function bbp_get_user_role( $user_id = 0 ) {
 
 	// Validate user id
-	$user_id = bbp_get_user_id( $user_id, false, false );
+	$user_id = bbp_get_user_id( $user_id );
 	$user    = get_userdata( $user_id );
 	$role    = false;
 
@@ -125,7 +129,46 @@ function bbp_get_user_role( $user_id = 0 ) {
 }
 
 /**
- * Helper function hooked to 'bbp_edit_user_profile_update' action to save or
+ * Return a user's blog role
+ *
+ * @since bbPress (r4446)
+ *
+ * @param int $user_id
+ * @uses bbp_get_user_id() To get the user id
+ * @uses get_userdata() To get the user data
+ * @uses apply_filters() Calls 'bbp_get_user_blog_role' with the role and user id
+ * @return string
+ */
+function bbp_get_user_blog_role( $user_id = 0 ) {
+
+	// Add bbPress roles (returns $wp_roles global)
+	$wp_roles  = bbp_add_forums_roles();
+
+	// Validate user id
+	$user_id   = bbp_get_user_id( $user_id );
+	$user      = get_userdata( $user_id );
+	$role      = false;
+
+	// User has roles so lets
+	if ( ! empty( $user->roles ) ) {
+
+		// Apply the WordPress 'editable_roles' filter to let plugins ride along
+		$all_roles = apply_filters( 'editable_roles', $wp_roles->roles );
+
+		// Look for an intersection of user roles to available blog roles
+		$roles     = array_intersect( array_values( $user->roles ), array_keys( $all_roles ) );
+
+		// If there's a role in the array, use the first one
+		if ( !empty( $roles ) ) {
+			$role = array_shift( array_values( $roles ) );
+		}
+	}
+
+	return apply_filters( 'bbp_get_user_blog_role', $role, $user_id, $user );
+}
+
+/**
+ * Helper function hooked to 'bbp_profile_update' action to save or
  * update user roles and capabilities.
  *
  * @since bbPress (r4235)
@@ -148,10 +191,20 @@ function bbp_profile_update_role( $user_id = 0 ) {
 	$new_role    = sanitize_text_field( $_POST['bbp-forums-role'] );
 	$forums_role = bbp_get_user_role( $user_id );
 
+	// Bail if no role change
+	if ( $new_role == $forums_role )
+		return;
+
+	// Bail if trying to set their own role
+	if ( bbp_is_user_home_edit() )
+		return;
+	
+	// Bail if current user cannot promote the passing user
+	if ( ! current_user_can( 'promote_user', $user_id ) )
+		return;
+
 	// Set the new forums role
-	if ( $new_role != $forums_role ) {
-		bbp_set_user_role( $user_id, $new_role );
-	}
+	bbp_set_user_role( $user_id, $new_role );
 }
 
 /**
@@ -208,36 +261,36 @@ function bbp_set_current_user_default_role() {
 	$add_to_site = bbp_allow_global_access();
 
 	// Get the current user's WordPress role. Set to empty string if none found.
-	$user_role   = isset( $bbp->current_user->roles ) ? array_shift( $bbp->current_user->roles ) : '';
+	$user_role   = bbp_get_user_blog_role( $user_id );
 
-	// Loop through the role map, and grant the proper bbPress role
-	foreach ( (array) bbp_get_user_role_map() as $wp_role => $bbp_role ) {
+	// Get the role map
+	$role_map    = bbp_get_user_role_map();
 
-		// User's role matches a possible WordPress role (including none at all)
-		if ( $user_role == $wp_role ) {
+	/** Forum Role ************************************************************/
 
-			// Add role to user account, making them a user of this site
-			if ( true == $add_to_site ) {
+	// Use a mapped role
+	if ( isset( $role_map[$user_role] ) ) {
+		$new_role = $role_map[$user_role];
 
-				// Override map to prevent accidental "Visitor"
-				if ( empty( $wp_role ) ) {
-					$bbp_role = bbp_get_default_role();
-				}
+	// Use the default role
+	} else {
+		$new_role = bbp_get_default_role();
+	}
 
-				// Add the mapped forums role to the user's account
-				$bbp->current_user->add_role( $bbp_role );
+	/** Add or Map ************************************************************/
 
-				// @todo Add the default site role too?
-				//$bbp->current_user->add_role( get_option( 'default_role' ) );
+	// Add the user to the site
+	if ( true == $add_to_site ) {
 
-			// Dynamically assign capabilities, making them "anonymous"
-			} else {
-				$bbp->current_user->caps[$bbp_role] = true;
-				$bbp->current_user->get_role_caps();
-			}
+		// Make sure bbPress roles are added
+		bbp_add_forums_roles();
 
-			break;
-		}
+		$bbp->current_user->add_role( $new_role );
+
+	// Don't add the user, but still give them the correct caps dynamically
+	} else {		
+		$bbp->current_user->caps[$new_role] = true;
+		$bbp->current_user->get_role_caps();
 	}
 }
 
@@ -261,8 +314,7 @@ function bbp_get_user_role_map() {
 		'editor'        => $default_role,
 		'author'        => $default_role,
 		'contributor'   => $default_role,
-		'subscriber'    => $default_role,
-		''              => bbp_get_visitor_role()
+		'subscriber'    => $default_role
 	) );
 }
 
@@ -315,7 +367,7 @@ function bbp_is_user_spammer( $user_id = 0 ) {
  * @uses bbp_is_single_user()
  * @uses bbp_is_user_home()
  * @uses bbp_get_displayed_user_field()
- * @uses is_super_admin()
+ * @uses bbp_is_user_keymaster()
  * @uses get_blogs_of_user()
  * @uses get_current_blog_id()
  * @uses bbp_get_topic_post_type()
@@ -336,11 +388,11 @@ function bbp_make_spam_user( $user_id = 0 ) {
 
 	// Bail if no user ID
 	if ( empty( $user_id ) )
-		return;
+		return false;
 
-	// Bail if user ID is super admin
-	if ( is_super_admin( $user_id ) )
-		return;
+	// Bail if user ID is keymaster
+	if ( bbp_is_user_keymaster( $user_id ) )
+		return false;
 
 	// Arm the torpedos
 	global $wpdb;
@@ -388,6 +440,9 @@ function bbp_make_spam_user( $user_id = 0 ) {
 		// Switch back to current blog
 		restore_current_blog();
 	}
+
+	// Success
+	return true;
 }
 
 /**
@@ -401,7 +456,7 @@ function bbp_make_spam_user( $user_id = 0 ) {
  * @uses bbp_is_single_user()
  * @uses bbp_is_user_home()
  * @uses bbp_get_displayed_user_field()
- * @uses is_super_admin()
+ * @uses bbp_is_user_keymaster()
  * @uses get_blogs_of_user()
  * @uses bbp_get_topic_post_type()
  * @uses bbp_get_reply_post_type()
@@ -421,11 +476,11 @@ function bbp_make_ham_user( $user_id = 0 ) {
 
 	// Bail if no user ID
 	if ( empty( $user_id ) )
-		return;
+		return false;
 
-	// Bail if user ID is super admin
-	if ( is_super_admin( $user_id ) )
-		return;
+	// Bail if user ID is keymaster
+	if ( bbp_is_user_keymaster( $user_id ) )
+		return false;
 
 	// Arm the torpedos
 	global $wpdb;
@@ -473,6 +528,9 @@ function bbp_make_ham_user( $user_id = 0 ) {
 		// Switch back to current blog
 		restore_current_blog();
 	}
+
+	// Success
+	return true;
 }
 
 /**
@@ -573,6 +631,23 @@ function bbp_is_user_inactive( $user_id = 0 ) {
 }
 
 /**
+ * Checks if user is a keymaster
+ *
+ * @since bbPress (r4783)
+ *
+ * @param int $user_id 
+ * @return bool True if keymaster, false if not
+ */
+function bbp_is_user_keymaster( $user_id = 0 ) {
+
+	// Default to current user ID if none is passed
+	$_user_id = (int) ! empty( $user_id ) ? $user_id : bbp_get_current_user_id();
+
+	// Filter and return
+	return (bool) apply_filters( 'bbp_is_user_keymaster', user_can( $_user_id, 'keep_gate' ), $_user_id, $user_id );
+}
+
+/**
  * Does a user have a profile for the current site
  *
  * @since bbPress (r4362)
@@ -582,7 +657,7 @@ function bbp_is_user_inactive( $user_id = 0 ) {
  *
  * @uses bbp_get_user_id() To verify the user ID
  * @uses get_userdata() To get the user's data
- * @uses is_super_admin() To determine if user can see inactive users
+ * @uses bbp_is_user_keymaster() To determine if user can see inactive users
  * @uses bbp_is_user_inactive() To check if user is spammer or deleted
  * @uses apply_filters() To allow override of this functions result
  *
@@ -603,8 +678,8 @@ function bbp_user_has_profile( $user_id = 0 ) {
 	if ( empty( $user ) ) {
 		$retval = false;
 
-	// User is inactive, and current user is not a super admin
-	} elseif ( ! is_super_admin() && bbp_is_user_inactive( $user->ID ) ) {
+	// User is inactive, and current user is not a keymaster
+	} elseif ( ! bbp_is_user_keymaster() && bbp_is_user_inactive( $user->ID ) ) {
 		$retval = false;
 	}
 

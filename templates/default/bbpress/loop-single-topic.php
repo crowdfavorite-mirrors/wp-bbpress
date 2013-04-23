@@ -9,9 +9,39 @@
 
 ?>
 
-<ul id="topic-<?php bbp_topic_id(); ?>" <?php bbp_topic_class(); ?>>
+<ul id="bbp-topic-<?php bbp_topic_id(); ?>" <?php bbp_topic_class(); ?>>
 
 	<li class="bbp-topic-title">
+
+		<?php if ( bbp_is_user_home() ) : ?>
+
+			<?php if ( bbp_is_favorites() ) : ?>
+
+				<span class="bbp-topic-action">
+
+					<?php do_action( 'bbp_theme_before_topic_favorites_action' ); ?>
+
+					<?php bbp_user_favorites_link( array( 'before' => '', 'favorite' => '+', 'favorited' => '&times;' ) ); ?>
+
+					<?php do_action( 'bbp_theme_after_topic_favorites_action' ); ?>
+
+				</span>
+
+			<?php elseif ( bbp_is_subscriptions() ) : ?>
+
+				<span class="bbp-topic-action">
+
+					<?php do_action( 'bbp_theme_before_topic_subscription_action' ); ?>
+
+					<?php bbp_user_subscribe_link( array( 'before' => '', 'subscribe' => '+', 'unsubscribe' => '&times;' ) ); ?>
+
+					<?php do_action( 'bbp_theme_after_topic_subscription_action' ); ?>
+
+				</span>
+
+			<?php endif; ?>
+
+		<?php endif; ?>
 
 		<?php do_action( 'bbp_theme_before_topic_title' ); ?>
 
@@ -72,34 +102,4 @@
 		</p>
 	</li>
 
-	<?php if ( bbp_is_user_home() ) : ?>
-
-		<?php if ( bbp_is_favorites() ) : ?>
-
-			<li class="bbp-topic-action">
-
-				<?php do_action( 'bbp_theme_before_topic_favorites_action' ); ?>
-
-				<?php bbp_user_favorites_link( array( 'mid' => '+', 'post' => '' ), array( 'pre' => '', 'mid' => '&times;', 'post' => '' ) ); ?>
-
-				<?php do_action( 'bbp_theme_after_topic_favorites_action' ); ?>
-
-			</li>
-
-		<?php elseif ( bbp_is_subscriptions() ) : ?>
-
-			<li class="bbp-topic-action">
-
-				<?php do_action( 'bbp_theme_before_topic_subscription_action' ); ?>
-
-				<?php bbp_user_subscribe_link( array( 'before' => '', 'subscribe' => '+', 'unsubscribe' => '&times;' ) ); ?>
-
-				<?php do_action( 'bbp_theme_after_topic_subscription_action' ); ?>
-
-			</li>
-
-		<?php endif; ?>
-
-	<?php endif; ?>
-
-</ul><!-- #topic-<?php bbp_topic_id(); ?> -->
+</ul><!-- #bbp-topic-<?php bbp_topic_id(); ?> -->

@@ -99,7 +99,7 @@ function bbp_get_caps_for_role( $role = '' ) {
 				'delete_forums'         => false,
 				'delete_others_forums'  => false,
 				'read_private_forums'   => true,
-				'read_hidden_forums'    => false,
+				'read_hidden_forums'    => true,
 
 				// Topic caps
 				'publish_topics'        => true,
@@ -217,7 +217,6 @@ function bbp_get_caps_for_role( $role = '' ) {
 			break;
 
 		// Participant/Default
-		case bbp_get_visitor_role()   :
 		case bbp_get_participant_role() :
 		default :
 			$caps = array(
@@ -327,15 +326,18 @@ function bbp_get_wp_roles() {
  * We do this to avoid adding these values to the database.
  *
  * @since bbPress (r4290)
+ * @return WP_Roles The main $wp_roles global
  */
 function bbp_add_forums_roles() {
 	$wp_roles = bbp_get_wp_roles();
 
 	foreach( bbp_get_dynamic_roles() as $role_id => $details ) {
 		$wp_roles->roles[$role_id]        = $details;
-		$wp_roles->role_objects[$role_id] = new WP_Role( $details['name'], $details['capabilities'] );
+		$wp_roles->role_objects[$role_id] = new WP_Role( $role_id, $details['capabilities'] );
 		$wp_roles->role_names[$role_id]   = $details['name'];
 	}
+
+	return $wp_roles;
 }
 
 /**
@@ -363,6 +365,9 @@ function bbp_filter_user_roles_option() {
  *
  * Because dynamic multiple roles is a new concept in WordPress, we work around
  * it here for now, knowing that improvements will come to WordPress core later.
+ *
+ * Also note that if using the $wp_user_roles global non-database approach,
+ * bbPress does not have an intercept point to add its dynamic roles.
  *
  * @see switch_to_blog()
  * @see restore_current_blog()
@@ -426,18 +431,27 @@ function bbp_get_dynamic_roles() {
 			'capabilities' => bbp_get_caps_for_role( bbp_get_spectator_role() )
 		),
 
-		// Visitor
-		bbp_get_visitor_role() => array(
-			'name'         => __( 'Visitor', 'bbpress' ),
-			'capabilities' => bbp_get_caps_for_role( bbp_get_visitor_role() )
-		),
-
 		// Blocked
 		bbp_get_blocked_role() => array(
 			'name'         => __( 'Blocked', 'bbpress' ),
 			'capabilities' => bbp_get_caps_for_role( bbp_get_blocked_role() )
 		)
 	) );
+}
+
+/**
+ * Gets a translated role name from a role ID
+ *
+ * @since bbPress (r4792)
+ *
+ * @param string $role_id
+ * @return string Translated role name
+ */
+function bbp_get_dynamic_role_name( $role_id = '' ) {
+	$roles = bbp_get_dynamic_roles();
+	$role  = isset( $roles[$role_id] ) ? $roles[$role_id]['name'] : '';
+
+	return apply_filters( 'bbp_get_dynamic_role_name', $role, $role_id, $roles );
 }
 
 /**
@@ -515,18 +529,6 @@ function bbp_get_participant_role() {
  */
 function bbp_get_spectator_role() {
 	return apply_filters( 'bbp_get_spectator_role', 'bbp_spectator' );
-}
-
-/**
- * The visitor role for any registered user without a set forum role.
- *
- * @since bbPress (r3860)
- *
- * @uses apply_filters() Allow override of hardcoded visitor role
- * @return string
- */
-function bbp_get_visitor_role() {
-	return apply_filters( 'bbp_get_visitor_role', 'bbp_visitor' );
 }
 
 /**

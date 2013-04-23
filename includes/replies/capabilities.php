@@ -75,7 +75,7 @@ function bbp_map_reply_meta_caps( $caps = array(), $cap = '', $user_id = 0, $arg
 
 					// Unknown so map to private posts
 					} else {
-						$caps = array( $post_type->cap->read_private_forums );
+						$caps = array( $post_type->cap->read_private_posts );
 					}
 				}
 			}
@@ -102,6 +102,10 @@ function bbp_map_reply_meta_caps( $caps = array(), $cap = '', $user_id = 0, $arg
 			// Moderators can always edit
 			if ( user_can( $user_id, 'moderate' ) ) {
 				$caps = array( 'moderate' );
+
+			// Otherwise, block
+			} else {
+				$caps = array( 'do_not_allow' );
 			}
 
 			break;
