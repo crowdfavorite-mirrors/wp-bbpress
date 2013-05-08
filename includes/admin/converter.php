@@ -26,6 +26,10 @@ class BBP_Converter {
 	 */
 	public function __construct() {
 
+		// "I wonder where I'll float next."
+		if ( empty( $_SERVER['REQUEST_METHOD'] ) )
+			return;
+
 		// Bail if request is not correct
 		switch ( strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
 
@@ -379,7 +383,7 @@ class BBP_Converter {
 						}
 					} else {
 						update_option( '_bbp_converter_start', $max + 1 );
-						$this->converter_output( sprintf( __( 'Delete users wordpress default passwords (%1$s - %2$s)', 'bbpress' ), $min, $max ) );
+						$this->converter_output( sprintf( __( 'Delete users WordPress default passwords (%1$s - %2$s)', 'bbpress' ), $min, $max ) );
 					}
 				} else {
 					update_option( '_bbp_converter_step',  $step + 1 );
@@ -525,7 +529,7 @@ abstract class BBP_Converter_Base {
 	protected $field_map = array();
 
 	/**
-	 * @var object This is the connection to the wordpress datbase.
+	 * @var object This is the connection to the WordPress datbase.
 	 */
 	protected $wpdb;
 
@@ -976,10 +980,11 @@ abstract class BBP_Converter_Base {
 
 		$has_update = false;
 
-		if ( !empty( $this->sync_table ) )
-			$query = $this->wpdb->prepare( "SELECT value_id, meta_value FROM {$this->sync_table_name} WHERE meta_key = '_bbp_forum_parent_id' AND meta_value > 0 LIMIT %d, %d", $start, $this->max_rows );
-		else
-			$query = $this->wpdb->prepare( "SELECT post_id AS value_id, meta_value FROM {$this->wpdb->postmeta} WHERE meta_key = '_bbp_forum_parent_id' AND meta_value > 0 LIMIT %d, %d", $start, $this->max_rows );
+		if ( !empty( $this->sync_table ) ) {
+			$query = 'SELECT value_id, meta_value FROM ' . $this->sync_table_name . ' WHERE meta_key = "_bbp_forum_parent_id" AND meta_value > 0 LIMIT ' . $start . ', ' . $this->max_rows;
+		} else {
+			$query = 'SELECT post_id AS value_id, meta_value FROM ' . $this->wpdb->postmeta . ' WHERE meta_key = "_bbp_forum_parent_id" AND meta_value > 0 LIMIT ' . $start . ', ' . $this->max_rows;
+		}
 
 		update_option( '_bbp_converter_query', $query );
 
@@ -987,7 +992,7 @@ abstract class BBP_Converter_Base {
 
 		foreach ( (array) $forum_array as $row ) {
 			$parent_id = $this->callback_forumid( $row->meta_value );
-			$this->wpdb->query( $this->wpdb->prepare( "UPDATE {$this->wpdb->posts} SET post_parent = '%d' WHERE ID = '%d' LIMIT 1", $parent_id, $row->value_id ) );
+			$this->wpdb->query( 'UPDATE ' . $this->wpdb->posts . ' SET post_parent = "' . $parent_id . '" WHERE ID = "' . $row->value_id . '" LIMIT 1' );
 			$has_update = true;
 		}
 
@@ -1004,10 +1009,11 @@ abstract class BBP_Converter_Base {
 
 		/** Delete bbconverter topics/forums/posts ****************************/
 
-		if ( true === $this->sync_table )
-			$query = $this->wpdb->prepare( 'SELECT value_id FROM ' . $this->sync_table_name . ' INNER JOIN ' . $this->wpdb->posts . ' ON(value_id = ID) WHERE meta_key LIKE "_bbp_%" AND value_type = "post" GROUP BY value_id ORDER BY value_id DESC LIMIT %d', $this->max_rows );
-		else
-			$query = $this->wpdb->prepare( 'SELECT post_id AS value_id FROM ' . $this->wpdb->postmeta . ' WHERE meta_key LIKE "_bbp_%" GROUP BY post_id ORDER BY post_id DESC LIMIT %d', $this->max_rows );
+		if ( true === $this->sync_table ) {
+			$query = 'SELECT value_id FROM ' . $this->sync_table_name . ' INNER JOIN ' . $this->wpdb->posts . ' ON(value_id = ID) WHERE meta_key LIKE "_bbp_%" AND value_type = "post" GROUP BY value_id ORDER BY value_id DESC LIMIT ' . $this->max_rows;
+		} else {
+			$query = 'SELECT post_id AS value_id FROM ' . $this->wpdb->postmeta . ' WHERE meta_key LIKE "_bbp_%" GROUP BY post_id ORDER BY post_id DESC LIMIT ' . $this->max_rows;
+		}
 
 		update_option( '_bbp_converter_query', $query );
 
@@ -1022,10 +1028,11 @@ abstract class BBP_Converter_Base {
 
 		/** Delete bbconverter users ******************************************/
 
-		if ( true === $this->sync_table )
-			$query = $this->wpdb->prepare( 'SELECT value_id FROM ' . $this->sync_table_name . ' INNER JOIN ' . $this->wpdb->users . ' ON(value_id = ID) WHERE meta_key = "_bbp_user_id" AND value_type = "user" LIMIT %d', $this->max_rows );
-		else
-			$query = $this->wpdb->prepare( 'SELECT user_id AS value_id FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_user_id" LIMIT %d', $this->max_rows );
+		if ( true === $this->sync_table ) {
+			$query = 'SELECT value_id FROM ' . $this->sync_table_name . ' INNER JOIN ' . $this->wpdb->users . ' ON(value_id = ID) WHERE meta_key = "_bbp_user_id" AND value_type = "user" LIMIT ' . $this->max_rows;
+		} else {
+			$query = 'SELECT user_id AS value_id FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_user_id" LIMIT ' . $this->max_rows;
+		}
 
 		update_option( '_bbp_converter_query', $query );
 
@@ -1055,7 +1062,7 @@ abstract class BBP_Converter_Base {
 
 		/** Delete bbconverter passwords **************************************/
 
-		$query       = $this->wpdb->prepare( 'SELECT user_id, meta_value FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" LIMIT %d, %d', $start, $this->max_rows );
+		$query       = 'SELECT user_id, meta_value FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" LIMIT ' . $start . ', ' . $this->max_rows;
 		update_option( '_bbp_converter_query', $query );
 
 		$bbconverter = $this->wpdb->get_results( $query, ARRAY_A );
@@ -1064,10 +1071,10 @@ abstract class BBP_Converter_Base {
 
 			foreach ( $bbconverter as $value ) {
 				if ( is_serialized( $value['meta_value'] ) ) {
-					$this->wpdb->query( $this->wpdb->prepare( 'UPDATE ' . $this->wpdb->users . ' SET user_pass = "" WHERE ID = "%d"', $value['user_id'] ) );
+					$this->wpdb->query( 'UPDATE ' . $this->wpdb->users . ' ' . 'SET user_pass = "" ' . 'WHERE ID = "' . $value['user_id'] . '"' );
 				} else {
-					$this->wpdb->query( $this->wpdb->prepare( 'UPDATE ' . $this->wpdb->users . ' SET user_pass = "%s" WHERE ID = "%d"', $value['meta_value'], $value['user_id'] ) );
-					$this->wpdb->query( $this->wpdb->prepare( 'DELETE FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" AND user_id = "%d"', $value['user_id'] ) );
+					$this->wpdb->query( 'UPDATE ' . $this->wpdb->users . ' ' . 'SET user_pass = "' . $value['meta_value'] . '" ' . 'WHERE ID = "' . $value['user_id'] . '"' );
+					$this->wpdb->query( 'DELETE FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" AND user_id = "' . $value['user_id'] . '"' );
 				}
 			}
 			$has_delete = true;
@@ -1121,12 +1128,12 @@ abstract class BBP_Converter_Base {
 	public function callback_pass( $username, $password ) {
 		$user = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT * FROM ' . $this->wpdb->users . ' WHERE user_login = "%s" AND user_pass = "" LIMIT 1', $username ) );
 		if ( !empty( $user ) ) {
-			$usermeta = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT * FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" AND user_id = "%d" LIMIT 1', $user->ID ) );
+			$usermeta = $this->wpdb->get_row( 'SELECT * FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" AND user_id = "' . $user->ID . '" LIMIT 1' );
 
 			if ( !empty( $usermeta ) ) {
 				if ( $this->authenticate_pass( $password, $usermeta->meta_value ) ) {
-					$this->wpdb->query( $this->wpdb->prepare( 'UPDATE ' . $this->wpdb->users . ' ' . 'SET user_pass = "%s" ' . 'WHERE ID = "%d"', wp_hash_password( $password ), $user->ID ) );
-					$this->wpdb->query( $this->wpdb->prepare( 'DELETE FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" AND user_id = "%d"', $user->ID ) );
+					$this->wpdb->query( 'UPDATE ' . $this->wpdb->users . ' ' . 'SET user_pass = "' . wp_hash_password( $password ) . '" ' . 'WHERE ID = "' . $user->ID . '"' );
+					$this->wpdb->query( 'DELETE FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_password" AND user_id = "' . $user->ID . '"' );
 				}
 			}
 		}
@@ -1216,7 +1223,7 @@ abstract class BBP_Converter_Base {
 		if ( empty( $topicid ) ) {
 			$this->map_topicid_to_forumid[$topicid] = 0;
 		} elseif ( ! isset( $this->map_topicid_to_forumid[$topicid] ) ) {
-			$row = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT post_parent FROM ' . $this->wpdb->posts . ' WHERE ID = "%d" LIMIT 1', $topicid ) );
+			$row = $this->wpdb->get_row( 'SELECT post_parent FROM ' . $this->wpdb->posts . ' WHERE ID = "' . $topicid . '" LIMIT 1' );
 
 			if ( !is_null( $row ) ) {
 				$this->map_topicid_to_forumid[$topicid] = $row->post_parent;
