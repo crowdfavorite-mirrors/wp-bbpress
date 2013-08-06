@@ -1098,7 +1098,7 @@ function bbp_reply_author_link( $args = '' ) {
 			// Link class
 			$link_class = ' class="bbp-author-' . $r['type'] . '"';
 
-			// Add links if not anonymous
+			// Add links if not anonymous and existing user
 			if ( empty( $anonymous ) && bbp_user_has_profile( bbp_get_reply_author_id( $reply_id ) ) ) {
 
 				// Assemble the links
@@ -1156,8 +1156,8 @@ function bbp_reply_author_url( $reply_id = 0 ) {
 	function bbp_get_reply_author_url( $reply_id = 0 ) {
 		$reply_id = bbp_get_reply_id( $reply_id );
 
-		// Check for anonymous user
-		if ( !bbp_is_reply_anonymous( $reply_id ) ) {
+		// Check for anonymous or non-existant user
+		if ( !bbp_is_reply_anonymous( $reply_id ) && bbp_user_has_profile( bbp_get_reply_author_id( $reply_id ) ) ) {
 			$author_url = bbp_get_user_profile_url( bbp_get_reply_author_id( $reply_id ) );
 		} else {
 			$author_url = get_post_meta( $reply_id, '_bbp_anonymous_website', true );
