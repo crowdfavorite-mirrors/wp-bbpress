@@ -95,6 +95,9 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 
 		// Saves the bbPress options if they come from the BuddyPress Group Admin UI
 		add_action( 'bp_group_admin_edit_after',     array( $this, 'edit_screen_save'                ) );
+
+		// Adds a hidden input value to the "Group Settings" page
+		add_action( 'bp_before_group_settings_admin', array( $this, 'group_settings_hidden_field'    ) );
 	}
 
 	/**
@@ -265,23 +268,23 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 		// Should box be checked already?
 		$checked = is_admin() ? bp_group_is_forum_enabled( $group ) : bp_get_new_group_enable_forum() || bp_group_is_forum_enabled( bp_get_group_id() ); ?>
 
-		<h4><?php _e( 'Group Forum Settings', 'bbpress' ); ?></h4>
+		<h4><?php esc_html_e( 'Group Forum Settings', 'bbpress' ); ?></h4>
 
 		<fieldset>
-			<legend class="screen-reader-text"><?php _e( 'Group Forum Settings', 'bbpress' ); ?></legend>
-			<p><?php _e( 'Create a discussion forum to allow members of this group to communicate in a structured, bulletin-board style fashion.', 'bbpress' ); ?></p>
+			<legend class="screen-reader-text"><?php esc_html_e( 'Group Forum Settings', 'bbpress' ); ?></legend>
+			<p><?php esc_html_e( 'Create a discussion forum to allow members of this group to communicate in a structured, bulletin-board style fashion.', 'bbpress' ); ?></p>
 
 			<div class="field-group">
 				<div class="checkbox">
-					<label><input type="checkbox" name="bbp-edit-group-forum" id="bbp-edit-group-forum" value="1"<?php checked( $checked ); ?> /> <?php _e( 'Yes. I want this group to have a forum.', 'bbpress' ); ?></label>
+					<label><input type="checkbox" name="bbp-edit-group-forum" id="bbp-edit-group-forum" value="1"<?php checked( $checked ); ?> /> <?php esc_html_e( 'Yes. I want this group to have a forum.', 'bbpress' ); ?></label>
 				</div>
 
-				<p class="description"><?php _e( 'Saying no will not delete existing forum content.', 'bbpress' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Saying no will not delete existing forum content.', 'bbpress' ); ?></p>
 			</div>
 
 			<?php if ( bbp_is_user_keymaster() ) : ?>
 				<div class="field-group">
-					<label for="bbp_group_forum_id"><?php _e( 'Group Forum:', 'bbpress' ); ?></label>
+					<label for="bbp_group_forum_id"><?php esc_html_e( 'Group Forum:', 'bbpress' ); ?></label>
 					<?php
 						bbp_dropdown( array(
 							'select_id' => 'bbp_group_forum_id',
@@ -289,7 +292,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 							'selected'  => $forum_id
 						) );
 					?>
-					<p class="description"><?php _e( 'Network administrators can reconfigure which forum belongs to this group.', 'bbpress' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Network administrators can reconfigure which forum belongs to this group.', 'bbpress' ); ?></p>
 				</div>
 			<?php endif; ?>
 
@@ -428,7 +431,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 		add_meta_box(
 			'bbpress_group_admin_ui_meta_box',
 			_x( 'Discussion Forum', 'group admin edit screen', 'bbpress' ),
-			array( &$this, 'group_admin_ui_display_metabox' ),
+			array( $this, 'group_admin_ui_display_metabox' ),
 			get_current_screen()->id,
 			'side',
 			'core'
@@ -455,26 +458,28 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 	 *
 	 * @since bbPress (r3465)
 	 */
-	public function create_screen() {
+	public function create_screen( $group_id = 0 ) {
 
 		// Bail if not looking at this screen
 		if ( !bp_is_group_creation_step( $this->slug ) )
 			return false;
 
-		$checked = bp_get_new_group_enable_forum() || groups_get_groupmeta( bp_get_new_group_id(), 'forum_id' ); ?>
+		// Check for possibly empty group_id
+		if ( empty( $group_id ) ) {
+			$group_id = bp_get_new_group_id();
+		}
 
-		<h4><?php _e( 'Group Forum', 'bbpress' ); ?></h4>
+		$checked = bp_get_new_group_enable_forum() || groups_get_groupmeta( $group_id, 'forum_id' ); ?>
 
-		<p><?php _e( 'Create a discussion forum to allow members of this group to communicate in a structured, bulletin-board style fashion.', 'bbpress' ); ?></p>
+		<h4><?php esc_html_e( 'Group Forum', 'bbpress' ); ?></h4>
+
+		<p><?php esc_html_e( 'Create a discussion forum to allow members of this group to communicate in a structured, bulletin-board style fashion.', 'bbpress' ); ?></p>
 
 		<div class="checkbox">
-			<label><input type="checkbox" name="bbp-create-group-forum" id="bbp-create-group-forum" value="1"<?php checked( $checked ); ?> /> <?php _e( 'Yes. I want this group to have a forum.', 'bbpress' ); ?></label>
+			<label><input type="checkbox" name="bbp-create-group-forum" id="bbp-create-group-forum" value="1"<?php checked( $checked ); ?> /> <?php esc_html_e( 'Yes. I want this group to have a forum.', 'bbpress' ); ?></label>
 		</div>
 
 		<?php
-
-		// Verify intent
-		wp_nonce_field( 'groups_create_save_' . $this->slug );
 	}
 
 	/**
@@ -482,7 +487,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 	 *
 	 * @since bbPress (r3465)
 	 */
-	public function create_screen_save() {
+	public function create_screen_save( $group_id = 0 ) {
 
 		// Nonce check
 		if ( ! bbp_verify_nonce_request( 'groups_create_save_' . $this->slug ) ) {
@@ -490,9 +495,14 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 			return;
 		}
 
+		// Check for possibly empty group_id
+		if ( empty( $group_id ) ) {
+			$group_id = bp_get_new_group_id();
+		}
+
 		$create_forum = !empty( $_POST['bbp-create-group-forum'] ) ? true : false;
 		$forum_id     = 0;
-		$forum_ids    = bbp_get_group_forum_ids( bp_get_new_group_id() );
+		$forum_ids    = bbp_get_group_forum_ids( $group_id );
 
 		if ( !empty( $forum_ids ) )
 			$forum_id = (int) is_array( $forum_ids ) ? $forum_ids[0] : $forum_ids;
@@ -680,6 +690,9 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 			$this->disconnect_forum_from_group( $group_id );
 		}
 
+		// Update bbPress' internal private and forum ID variables
+		bbp_repair_forum_visibility();
+
 		// Return the group
 		return $group;
 	}
@@ -711,7 +724,8 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 
 		// Forum data
 		$forum_action = bp_action_variable( $offset );
-		$forum_id     = array_shift( bbp_get_group_forum_ids( bp_get_current_group_id() ) );
+		$forum_ids    = bbp_get_group_forum_ids( bp_get_current_group_id() );
+		$forum_id     = array_shift( $forum_ids );
 
 		// Always load up the group forum
 		bbp_has_forums( array(
@@ -735,10 +749,10 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 				case 'page' :
 
 					// Strip the super stickies from topic query
-					add_filter( 'bbp_get_super_stickies',                 array( $this, 'no_super_stickies'  ), 10, 1 );
+					add_filter( 'bbp_get_super_stickies', array( $this, 'no_super_stickies'  ), 10, 1 );
 
 					// Unset the super sticky option on topic form
-					add_filter( 'bbp_after_topic_type_select_parse_args', array( $this, 'unset_super_sticky' ), 10, 1 );
+					add_filter( 'bbp_get_topic_types',    array( $this, 'unset_super_sticky' ), 10, 1 );
 
 					// Query forums and show them if they exist
 					if ( bbp_forums() ) :
@@ -754,7 +768,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 					else : ?>
 
 						<div id="message" class="info">
-							<p><?php _e( 'This group does not currently have a forum.', 'bbpress' ); ?></p>
+							<p><?php esc_html_e( 'This group does not currently have a forum.', 'bbpress' ); ?></p>
 						</div>
 
 					<?php endif;
@@ -791,10 +805,10 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 					<?php
 
 					// Topic edit
-					if ( bp_action_variable( $offset + 2 ) == bbp_get_edit_rewrite_id() ) :
+					if ( bp_action_variable( $offset + 2 ) === bbp_get_edit_rewrite_id() ) :
 
 						// Unset the super sticky link on edit topic template
-						add_filter( 'bbp_after_topic_type_select_parse_args', array( $this, 'unset_super_sticky' ), 10, 1 );
+						add_filter( 'bbp_get_topic_types', array( $this, 'unset_super_sticky' ), 10, 1 );
 
 						// Set the edit switches
 						$wp_query->bbp_is_edit       = true;
@@ -804,12 +818,12 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 						$bbp->current_topic_id       = get_the_ID();
 
 						// Merge
-						if ( !empty( $_GET['action'] ) && 'merge' == $_GET['action'] ) :
+						if ( !empty( $_GET['action'] ) && 'merge' === $_GET['action'] ) :
 							bbp_set_query_name( 'bbp_topic_merge' );
 							bbp_get_template_part( 'form', 'topic-merge' );
 
 						// Split
-						elseif ( !empty( $_GET['action'] ) && 'split' == $_GET['action'] ) :
+						elseif ( !empty( $_GET['action'] ) && 'split' === $_GET['action'] ) :
 							bbp_set_query_name( 'bbp_topic_split' );
 							bbp_get_template_part( 'form', 'topic-split' );
 
@@ -850,7 +864,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 
 					<h3><?php bbp_reply_title(); ?></h3>
 
-					<?php if ( bp_action_variable( $offset + 2 ) == bbp_get_edit_rewrite_id() ) :
+					<?php if ( bp_action_variable( $offset + 2 ) === bbp_get_edit_rewrite_id() ) :
 
 						// Set the edit switches
 						$wp_query->bbp_is_edit       = true;
@@ -860,7 +874,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 						$bbp->current_reply_id       = get_the_ID();
 
 						// Move
-						if ( !empty( $_GET['action'] ) && ( 'move' == $_GET['action'] ) ) :
+						if ( !empty( $_GET['action'] ) && ( 'move' === $_GET['action'] ) ) :
 							bbp_set_query_name( 'bbp_reply_move' );
 							bbp_get_template_part( 'form', 'reply-move' );
 
@@ -908,7 +922,9 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 	 * @return array $args without the to-front link
 	 */
 	public function unset_super_sticky( $args = array() ) {
-		$args['super_text'] = '';
+		if ( isset( $args['super'] ) ) {
+			unset( $args['super'] );
+		}
 		return $args;
 	}
 
@@ -1019,7 +1035,7 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 		$forum_ids = bbp_get_group_forum_ids( bp_get_current_group_id() ); ?>
 
 		<p>
-			<label for="bbp_forum_id"><?php _e( 'Forum:', 'bbpress' ); ?></label><br />
+			<label for="bbp_forum_id"><?php esc_html_e( 'Forum:', 'bbpress' ); ?></label><br />
 			<?php bbp_dropdown( array( 'include' => $forum_ids, 'selected' => bbp_get_form_topic_forum() ) ); ?>
 		</p>
 
@@ -1065,6 +1081,29 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 		}
 
 		return $retval;
+	}
+
+	/**
+	 * Add a hidden input field on the group settings page if the group forum is
+	 * enabled.
+	 *
+	 * Due to the way BuddyPress' group admin settings page saves its settings,
+	 * we need to let BP know that bbPress added a forum.
+	 *
+	 * @since bbPress (r5026)
+	 *
+	 * @link http://bbpress.trac.wordpress.org/ticket/2339/
+	 * @see groups_screen_group_admin_settings()
+	 */
+	public function group_settings_hidden_field() {
+
+		// if a forum is not enabled, we don't need to add this field
+		if ( ! bp_group_is_forum_enabled() )
+			return; ?>
+
+		<input type="hidden" name="group-show-forum" id="group-show-forum" value="1" />
+
+	<?php
 	}
 
 	/** Permalink Mappers *****************************************************/
@@ -1349,6 +1388,9 @@ class BBP_Forums_Group_Extension extends BP_Group_Extension {
 
 		// Set the item ID to the group ID so the activity item shows up in the group
 		$args['item_id']           = $group->id;
+
+		// Update the group's last activity
+		groups_update_last_activity( $group->id );
 
 		return $args;
 	}

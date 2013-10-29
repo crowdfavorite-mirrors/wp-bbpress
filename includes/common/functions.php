@@ -85,10 +85,11 @@ function bbp_convert_date( $time, $d = 'U', $translate = false ) {
  * @param string $older_date Unix timestamp from which the difference begins.
  * @param string $newer_date Optional. Unix timestamp from which the
  *                            difference ends. False for current time.
+ * @param int $gmt Optional. Whether to use GMT timezone. Default is false.
  * @uses bbp_get_time_since() To get the formatted time
  */
-function bbp_time_since( $older_date, $newer_date = false ) {
-	echo bbp_get_time_since( $older_date, $newer_date );
+function bbp_time_since( $older_date, $newer_date = false, $gmt = false ) {
+	echo bbp_get_time_since( $older_date, $newer_date, $gmt );
 }
 	/**
 	 * Return formatted time to display human readable time difference.
@@ -98,13 +99,14 @@ function bbp_time_since( $older_date, $newer_date = false ) {
 	 * @param string $older_date Unix timestamp from which the difference begins.
 	 * @param string $newer_date Optional. Unix timestamp from which the
 	 *                            difference ends. False for current time.
+	 * @param int $gmt Optional. Whether to use GMT timezone. Default is false.
 	 * @uses current_time() To get the current time in mysql format
 	 * @uses human_time_diff() To get the time differene in since format
 	 * @uses apply_filters() Calls 'bbp_get_time_since' with the time
 	 *                        difference and time
 	 * @return string Formatted time
 	 */
-	function bbp_get_time_since( $older_date, $newer_date = false ) {
+	function bbp_get_time_since( $older_date, $newer_date = false, $gmt = false ) {
 
 		// Setup the strings
 		$unknown_text   = apply_filters( 'bbp_core_time_since_unknown_text',   __( 'sometime',  'bbpress' ) );
@@ -131,7 +133,7 @@ function bbp_time_since( $older_date, $newer_date = false ) {
 		// $newer_date will equal false if we want to know the time elapsed
 		// between a date and the current time. $newer_date will have a value if
 		// we want to work out time elapsed between two known dates.
-		$newer_date = ( !$newer_date ) ? strtotime( current_time( 'mysql' ) ) : $newer_date;
+		$newer_date = ( !$newer_date ) ? strtotime( current_time( 'mysql', $gmt ) ) : $newer_date;
 
 		// Difference in seconds
 		$since = $newer_date - $older_date;
@@ -217,7 +219,7 @@ function bbp_format_revision_reason( $reason = '' ) {
 	$reason = trim( $reason );
 
 	// We add our own full stop.
-	while ( substr( $reason, -1 ) == '.' )
+	while ( substr( $reason, -1 ) === '.' )
 		$reason = substr( $reason, 0, -1 );
 
 	// Trim again
@@ -290,7 +292,7 @@ function bbp_remove_view_all( $original_link = '' ) {
  * @return bool Whether current user can and is viewing all
  */
 function bbp_get_view_all( $cap = 'moderate' ) {
-	$retval = ( ( !empty( $_GET['view'] ) && ( 'all' == $_GET['view'] ) && current_user_can( $cap ) ) );
+	$retval = ( ( !empty( $_GET['view'] ) && ( 'all' === $_GET['view'] ) && current_user_can( $cap ) ) );
 	return apply_filters( 'bbp_get_view_all', (bool) $retval );
 }
 
@@ -350,8 +352,8 @@ function bbp_fix_post_author( $data = array(), $postarr = array() ) {
 		return $data;
 
 	// Is the post by an anonymous user?
-	if ( ( bbp_get_topic_post_type() == $data['post_type'] && !bbp_is_topic_anonymous( $postarr['ID'] ) ) ||
-	     ( bbp_get_reply_post_type() == $data['post_type'] && !bbp_is_reply_anonymous( $postarr['ID'] ) ) )
+	if ( ( bbp_get_topic_post_type() === $data['post_type'] && !bbp_is_topic_anonymous( $postarr['ID'] ) ) ||
+	     ( bbp_get_reply_post_type() === $data['post_type'] && !bbp_is_reply_anonymous( $postarr['ID'] ) ) )
 		return $data;
 
 	// The post is being updated. It is a topic or a reply and is written by an anonymous user.
@@ -861,7 +863,7 @@ function bbp_check_for_moderation( $anonymous_data = false, $author_id = 0, $tit
 		$pattern = "#$word#i";
 
 		// Loop through post data
-		foreach( $_post as $post_data ) {
+		foreach ( $_post as $post_data ) {
 
 			// Check each user data for current word
 			if ( preg_match( $pattern, $post_data ) ) {
@@ -962,7 +964,7 @@ function bbp_check_for_blacklist( $anonymous_data = false, $author_id = 0, $titl
 		$pattern = "#$word#i";
 
 		// Loop through post data
-		foreach( $_post as $post_data ) {
+		foreach ( $_post as $post_data ) {
 
 			// Check each user data for current word
 			if ( preg_match( $pattern, $post_data ) ) {
@@ -1061,7 +1063,7 @@ function bbp_notify_subscribers( $reply_id = 0, $topic_id = 0, $forum_id = 0, $a
 	foreach ( (array) $user_ids as $user_id ) {
 
 		// Don't send notifications to the person who made the post
-		if ( !empty( $reply_author ) && (int) $user_id == (int) $reply_author )
+		if ( !empty( $reply_author ) && (int) $user_id === (int) $reply_author )
 			continue;
 
 		// For plugins to filter messages per reply/topic/user
@@ -1123,7 +1125,7 @@ function bbp_logout_url( $url = '', $redirect_to = '' ) {
 	if ( empty( $redirect_to ) && !strstr( $url, 'redirect_to' ) ) {
 
 		// Rejig the $redirect_to
-		if ( !isset( $_SERVER['REDIRECT_URL'] ) || ( $redirect_to != home_url( $_SERVER['REDIRECT_URL'] ) ) ) {
+		if ( !isset( $_SERVER['REDIRECT_URL'] ) || ( $redirect_to !== home_url( $_SERVER['REDIRECT_URL'] ) ) ) {
 			$redirect_to = isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : '';
 		}
 
@@ -1155,27 +1157,31 @@ function bbp_logout_url( $url = '', $redirect_to = '' ) {
  * @param string $filter_key String to key the filters from
  * @return array Merged user defined values with defaults.
  */
-function bbp_parse_args( $args, $defaults = '', $filter_key = '' ) {
+function bbp_parse_args( $args, $defaults = array(), $filter_key = '' ) {
 
 	// Setup a temporary array from $args
-	if ( is_object( $args ) )
+	if ( is_object( $args ) ) {
 		$r = get_object_vars( $args );
-	elseif ( is_array( $args ) )
+	} elseif ( is_array( $args ) ) {
 		$r =& $args;
-	else
+	} else {
 		wp_parse_str( $args, $r );
+	}
 
 	// Passively filter the args before the parse
-	if ( !empty( $filter_key ) )
+	if ( !empty( $filter_key ) ) {
 		$r = apply_filters( 'bbp_before_' . $filter_key . '_parse_args', $r );
+	}
 
 	// Parse
-	if ( is_array( $defaults ) )
+	if ( is_array( $defaults ) && !empty( $defaults ) ) {
 		$r = array_merge( $defaults, $r );
+	}
 
 	// Aggressively filter the args after the parse
-	if ( !empty( $filter_key ) )
+	if ( !empty( $filter_key ) ) {
 		$r = apply_filters( 'bbp_after_' . $filter_key . '_parse_args', $r );
+	}
 
 	// Return the parsed results
 	return $r;
@@ -1209,13 +1215,13 @@ function bbp_query_post_parent__in( $where, $object = '' ) {
 
 	// Including specific post_parent's
 	if ( ! empty( $object->query_vars['post_parent__in'] ) ) {
-		$ids    = implode( ',', array_map( 'absint', $object->query_vars['post_parent__in'] ) );
-		$where .= " AND $wpdb->posts.post_parent IN ($ids)";
+		$ids    = implode( ',', wp_parse_id_list( $object->query_vars['post_parent__in'] ) );
+		$where .= " AND {$wpdb->posts}.post_parent IN ($ids)";
 
 	// Excluding specific post_parent's
 	} elseif ( ! empty( $object->query_vars['post_parent__not_in'] ) ) {
-		$ids    = implode( ',', array_map( 'absint', $object->query_vars['post_parent__not_in'] ) );
-		$where .= " AND $wpdb->posts.post_parent NOT IN ($ids)";
+		$ids    = implode( ',', wp_parse_id_list( $object->query_vars['post_parent__not_in'] ) );
+		$where .= " AND {$wpdb->posts}.post_parent NOT IN ($ids)";
 	}
 
 	// Return possibly modified $where
@@ -1244,25 +1250,27 @@ function bbp_get_public_child_last_id( $parent_id = 0, $post_type = 'post' ) {
 		return false;
 
 	// The ID of the cached query
-	$cache_id    = 'bbp_parent_' . $parent_id . '_type_' . $post_type . '_child_last_id';
-	$post_status = array( bbp_get_public_status_id() );
-
-	// Add closed status if topic post type
-	if ( $post_type == bbp_get_topic_post_type() )
-		$post_status[] = bbp_get_closed_status_id();
-
-	// Join post statuses together
-	$post_status = "'" . join( "', '", $post_status ) . "'";
+	$cache_id = 'bbp_parent_' . $parent_id . '_type_' . $post_type . '_child_last_id';
 
 	// Check for cache and set if needed
 	$child_id = wp_cache_get( $cache_id, 'bbpress_posts' );
-	if ( empty( $child_id ) ) {
+	if ( false === $child_id ) {
+		$post_status = array( bbp_get_public_status_id() );
+
+		// Add closed status if topic post type
+		if ( $post_type === bbp_get_topic_post_type() ) {
+			$post_status[] = bbp_get_closed_status_id();
+		}
+
+		// Join post statuses together
+		$post_status = "'" . implode( "', '", $post_status ) . "'";
+
 		$child_id = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_status IN ( {$post_status} ) AND post_type = '%s' ORDER BY ID DESC LIMIT 1;", $parent_id, $post_type ) );
 		wp_cache_set( $cache_id, $child_id, 'bbpress_posts' );
 	}
 
 	// Filter and return
-	return apply_filters( 'bbp_get_public_child_last_id', (int) $child_id, (int) $parent_id, $post_type );
+	return apply_filters( 'bbp_get_public_child_last_id', (int) $child_id, $parent_id, $post_type );
 }
 
 /**
@@ -1288,24 +1296,26 @@ function bbp_get_public_child_count( $parent_id = 0, $post_type = 'post' ) {
 
 	// The ID of the cached query
 	$cache_id    = 'bbp_parent_' . $parent_id . '_type_' . $post_type . '_child_count';
-	$post_status = array( bbp_get_public_status_id() );
-
-	// Add closed status if topic post type
-	if ( $post_type == bbp_get_topic_post_type() )
-		$post_status[] = bbp_get_closed_status_id();
-
-	// Join post statuses together
-	$post_status = "'" . join( "', '", $post_status ) . "'";
 
 	// Check for cache and set if needed
 	$child_count = wp_cache_get( $cache_id, 'bbpress_posts' );
-	if ( empty( $child_count ) ) {
+	if ( false === $child_count ) {
+		$post_status = array( bbp_get_public_status_id() );
+
+		// Add closed status if topic post type
+		if ( $post_type === bbp_get_topic_post_type() ) {
+			$post_status[] = bbp_get_closed_status_id();
+		}
+
+		// Join post statuses together
+		$post_status = "'" . implode( "', '", $post_status ) . "'";
+
 		$child_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(ID) FROM {$wpdb->posts} WHERE post_parent = %d AND post_status IN ( {$post_status} ) AND post_type = '%s';", $parent_id, $post_type ) );
 		wp_cache_set( $cache_id, $child_count, 'bbpress_posts' );
 	}
 
 	// Filter and return
-	return apply_filters( 'bbp_get_public_child_count', (int) $child_count, (int) $parent_id, $post_type );
+	return apply_filters( 'bbp_get_public_child_count', (int) $child_count, $parent_id, $post_type );
 }
 
 /**
@@ -1330,26 +1340,29 @@ function bbp_get_public_child_ids( $parent_id = 0, $post_type = 'post' ) {
 		return false;
 
 	// The ID of the cached query
-	$cache_id    = 'bbp_parent_public_' . $parent_id . '_type_' . $post_type . '_child_ids';
-	$post_status = array( bbp_get_public_status_id() );
-
-	// Add closed status if topic post type
-	if ( $post_type == bbp_get_topic_post_type() )
-		$post_status[] = bbp_get_closed_status_id();
-
-	// Join post statuses together
-	$post_status = "'" . join( "', '", $post_status ) . "'";
+	$cache_id  = 'bbp_parent_public_' . $parent_id . '_type_' . $post_type . '_child_ids';
 
 	// Check for cache and set if needed
 	$child_ids = wp_cache_get( $cache_id, 'bbpress_posts' );
-	if ( empty( $child_ids ) ) {
+	if ( false === $child_ids ) {
+		$post_status = array( bbp_get_public_status_id() );
+
+		// Add closed status if topic post type
+		if ( $post_type === bbp_get_topic_post_type() ) {
+			$post_status[] = bbp_get_closed_status_id();
+		}
+
+		// Join post statuses together
+		$post_status = "'" . implode( "', '", $post_status ) . "'";
+
 		$child_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_status IN ( {$post_status} ) AND post_type = '%s' ORDER BY ID DESC;", $parent_id, $post_type ) );
 		wp_cache_set( $cache_id, $child_ids, 'bbpress_posts' );
 	}
 
 	// Filter and return
-	return apply_filters( 'bbp_get_public_child_ids', $child_ids, (int) $parent_id, $post_type );
+	return apply_filters( 'bbp_get_public_child_ids', $child_ids, $parent_id, $post_type );
 }
+
 /**
  * Query the DB and get a the child id's of all children
  *
@@ -1372,38 +1385,39 @@ function bbp_get_all_child_ids( $parent_id = 0, $post_type = 'post' ) {
 		return false;
 
 	// The ID of the cached query
-	$cache_id    = 'bbp_parent_all_' . $parent_id . '_type_' . $post_type . '_child_ids';
-	$post_status = array( bbp_get_public_status_id() );
-
-	// Extra post statuses based on post type
-	switch ( $post_type ) {
-
-		// Forum
-		case bbp_get_forum_post_type() :
-			$post_status[] = bbp_get_private_status_id();
-			$post_status[] = bbp_get_hidden_status_id();
-			break;
-
-		// Topic
-		case bbp_get_topic_post_type() :
-			$post_status[] = bbp_get_closed_status_id();
-			$post_status[] = bbp_get_trash_status_id();
-			$post_status[] = bbp_get_spam_status_id();
-			break;
-
-		// Reply
-		case bbp_get_reply_post_type() :
-			$post_status[] = bbp_get_trash_status_id();
-			$post_status[] = bbp_get_spam_status_id();
-			break;
-	}
-
-	// Join post statuses together
-	$post_status = "'" . join( "', '", $post_status ) . "'";
+	$cache_id  = 'bbp_parent_all_' . $parent_id . '_type_' . $post_type . '_child_ids';
 
 	// Check for cache and set if needed
 	$child_ids = wp_cache_get( $cache_id, 'bbpress_posts' );
-	if ( empty( $child_ids ) ) {
+	if ( false === $child_ids ) {
+		$post_status = array( bbp_get_public_status_id() );
+
+		// Extra post statuses based on post type
+		switch ( $post_type ) {
+
+			// Forum
+			case bbp_get_forum_post_type() :
+				$post_status[] = bbp_get_private_status_id();
+				$post_status[] = bbp_get_hidden_status_id();
+				break;
+
+			// Topic
+			case bbp_get_topic_post_type() :
+				$post_status[] = bbp_get_closed_status_id();
+				$post_status[] = bbp_get_trash_status_id();
+				$post_status[] = bbp_get_spam_status_id();
+				break;
+
+			// Reply
+			case bbp_get_reply_post_type() :
+				$post_status[] = bbp_get_trash_status_id();
+				$post_status[] = bbp_get_spam_status_id();
+				break;
+		}
+
+		// Join post statuses together
+		$post_status = "'" . implode( "', '", $post_status ) . "'";
+
 		$child_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_status IN ( {$post_status} ) AND post_type = '%s' ORDER BY ID DESC;", $parent_id, $post_type ) );
 		wp_cache_set( $cache_id, $child_ids, 'bbpress_posts' );
 	}
@@ -1450,24 +1464,47 @@ function bbp_get_global_post_field( $field = 'ID', $context = 'edit' ) {
  */
 function bbp_verify_nonce_request( $action = '', $query_arg = '_wpnonce' ) {
 
+	/** Home URL **************************************************************/
+
 	// Parse home_url() into pieces to remove query-strings, strange characters,
 	// and other funny things that plugins might to do to it.
-	$parsed_home   = parse_url( home_url( '/', ( is_ssl() ? 'https://' : 'http://' ) ) );
-	$home_url      = trim( strtolower( $parsed_home['scheme'] . '://' . $parsed_home['host'] . $parsed_home['path'] ), '/' );
+	$parsed_home = parse_url( home_url( '/', ( is_ssl() ? 'https://' : 'http://' ) ) );
+
+	// Maybe include the port, if it's included
+	if ( isset( $parsed_home['port'] ) ) {
+		$parsed_host = $parsed_home['host'] . ':' . $parsed_home['port'];
+	} else {
+		$parsed_host = $parsed_home['host'];
+	}
+
+	// Set the home URL for use in comparisons
+	$home_url = trim( strtolower( $parsed_home['scheme'] . '://' . $parsed_host . $parsed_home['path'] ), '/' );
+
+	/** Requested URL *********************************************************/
+
+	// Maybe include the port, if it's included in home_url()
+	if ( isset( $parsed_home['port'] ) ) {
+		$request_host = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['SERVER_PORT'];
+	} else {
+		$request_host = $_SERVER['HTTP_HOST'];
+	}
 
 	// Build the currently requested URL
 	$scheme        = is_ssl() ? 'https://' : 'http://';
-	$requested_url = strtolower( $scheme . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+	$requested_url = strtolower( $scheme . $request_host . $_SERVER['REQUEST_URI'] );
+
+	/** Look for match ********************************************************/
 
 	// Filter the requested URL, for configurations like reverse proxying
-	$matched_url   = apply_filters( 'bbp_verify_nonce_request_url', $requested_url );
+	$matched_url = apply_filters( 'bbp_verify_nonce_request_url', $requested_url );
 
 	// Check the nonce
 	$result = isset( $_REQUEST[$query_arg] ) ? wp_verify_nonce( $_REQUEST[$query_arg], $action ) : false;
 
 	// Nonce check failed
-	if ( empty( $result ) || empty( $action ) || ( strpos( $matched_url, $home_url ) !== 0 ) )
+	if ( empty( $result ) || empty( $action ) || ( strpos( $matched_url, $home_url ) !== 0 ) ) {
 		$result = false;
+	}
 
 	// Do extra things
 	do_action( 'bbp_verify_nonce_request', $action, $result );
@@ -1494,160 +1531,185 @@ function bbp_request_feed_trap( $query_vars = array() ) {
 
 		// Forum/Topic/Reply Feed
 		if ( isset( $query_vars['post_type'] ) ) {
-                    
-			// Supported select query vars
-			$select_query_vars = array(
-				'p'                      => false,
-				'name'                   => false,
-				$query_vars['post_type'] => false
+
+			// Matched post type
+			$post_type = false;
+
+			// Post types to check
+			$post_types = array(
+				bbp_get_forum_post_type(),
+				bbp_get_topic_post_type(),
+				bbp_get_reply_post_type()
 			);
 
-			// Setup matched variables to select
-			foreach ( $query_vars as $key => $value ) {
-				if ( isset( $select_query_vars[$key] ) ) {
-					$select_query_vars[$key] = $value;
-				}
+			// Cast query vars as array outside of foreach loop
+			$qv_array = (array) $query_vars['post_type'];
+
+			// Check if this query is for a bbPress post type
+			foreach ( $post_types as $bbp_pt ) {
+			    if ( in_array( $bbp_pt, $qv_array, true ) ) {
+				    $post_type = $bbp_pt;
+				    break;
+			    }
 			}
 
-			// Remove any empties
-			$select_query_vars = array_filter( $select_query_vars );
+			// Looking at a bbPress post type
+			if ( ! empty( $post_type ) ) {
 
-			// What bbPress post type are we looking for feeds on?
-			switch ( $query_vars['post_type'] ) {
+				// Supported select query vars
+				$select_query_vars = array(
+					'p'        => false,
+					'name'     => false,
+					$post_type => false,
+				);
 
-				// Forum
-				case bbp_get_forum_post_type() :
-
-					// Define local variable(s)
-					$meta_query = array();
-
-					// Single forum
-					if ( !empty( $select_query_vars ) ) {
-
-						// Load up our own query
-						query_posts( array_merge( array(
-							'post_type' => bbp_get_forum_post_type(),
-							'feed'      => true
-						), $select_query_vars ) );
-
-						// Restrict to specific forum ID
-						$meta_query = array( array(
-							'key'     => '_bbp_forum_id',
-							'value'   => bbp_get_forum_id(),
-							'type'    => 'numeric',
-							'compare' => '='
-						) );
+				// Setup matched variables to select
+				foreach ( $query_vars as $key => $value ) {
+					if ( isset( $select_query_vars[$key] ) ) {
+						$select_query_vars[$key] = $value;
 					}
+				}
 
-					// Only forum replies
-					if ( !empty( $_GET['type'] ) && ( bbp_get_reply_post_type() == $_GET['type'] ) ) {
+				// Remove any empties
+				$select_query_vars = array_filter( $select_query_vars );
+
+				// What bbPress post type are we looking for feeds on?
+				switch ( $post_type ) {
+
+					// Forum
+					case bbp_get_forum_post_type() :
+
+						// Define local variable(s)
+						$meta_query = array();
+
+						// Single forum
+						if ( !empty( $select_query_vars ) ) {
+
+							// Load up our own query
+							query_posts( array_merge( array(
+								'post_type' => bbp_get_forum_post_type(),
+								'feed'      => true
+							), $select_query_vars ) );
+
+							// Restrict to specific forum ID
+							$meta_query = array( array(
+								'key'     => '_bbp_forum_id',
+								'value'   => bbp_get_forum_id(),
+								'type'    => 'numeric',
+								'compare' => '='
+							) );
+						}
+
+						// Only forum replies
+						if ( !empty( $_GET['type'] ) && ( bbp_get_reply_post_type() === $_GET['type'] ) ) {
+
+							// The query
+							$the_query = array(
+								'author'         => 0,
+								'feed'           => true,
+								'post_type'      => bbp_get_reply_post_type(),
+								'post_parent'    => 'any',
+								'post_status'    => array( bbp_get_public_status_id(), bbp_get_closed_status_id() ),
+								'posts_per_page' => bbp_get_replies_per_rss_page(),
+								'order'          => 'DESC',
+								'meta_query'     => $meta_query
+							);
+
+							// Output the feed
+							bbp_display_replies_feed_rss2( $the_query );
+
+						// Only forum topics
+						} elseif ( !empty( $_GET['type'] ) && ( bbp_get_topic_post_type() === $_GET['type'] ) ) {
+
+							// The query
+							$the_query = array(
+								'author'         => 0,
+								'feed'           => true,
+								'post_type'      => bbp_get_topic_post_type(),
+								'post_parent'    => bbp_get_forum_id(),
+								'post_status'    => array( bbp_get_public_status_id(), bbp_get_closed_status_id() ),
+								'posts_per_page' => bbp_get_topics_per_rss_page(),
+								'order'          => 'DESC'
+							);
+
+							// Output the feed
+							bbp_display_topics_feed_rss2( $the_query );
+
+						// All forum topics and replies
+						} else {
+
+							// Exclude private/hidden forums if not looking at single
+							if ( empty( $select_query_vars ) )
+								$meta_query = array( bbp_exclude_forum_ids( 'meta_query' ) );
+
+							// The query
+							$the_query = array(
+								'author'         => 0,
+								'feed'           => true,
+								'post_type'      => array( bbp_get_reply_post_type(), bbp_get_topic_post_type() ),
+								'post_parent'    => 'any',
+								'post_status'    => array( bbp_get_public_status_id(), bbp_get_closed_status_id() ),
+								'posts_per_page' => bbp_get_replies_per_rss_page(),
+								'order'          => 'DESC',
+								'meta_query'     => $meta_query
+							);
+
+							// Output the feed
+							bbp_display_replies_feed_rss2( $the_query );
+						}
+
+						break;
+
+					// Topic feed - Show replies
+					case bbp_get_topic_post_type() :
+
+						// Single topic
+						if ( !empty( $select_query_vars ) ) {
+
+							// Load up our own query
+							query_posts( array_merge( array(
+								'post_type' => bbp_get_topic_post_type(),
+								'feed'      => true
+							), $select_query_vars ) );
+
+							// Output the feed
+							bbp_display_replies_feed_rss2( array( 'feed' => true ) );
+
+						// All topics
+						} else {
+
+							// The query
+							$the_query = array(
+								'author'         => 0,
+								'feed'           => true,
+								'post_parent'    => 'any',
+								'posts_per_page' => bbp_get_topics_per_rss_page(),
+								'show_stickies'  => false
+							);
+
+							// Output the feed
+							bbp_display_topics_feed_rss2( $the_query );
+						}
+
+						break;
+
+					// Replies
+					case bbp_get_reply_post_type() :
 
 						// The query
 						$the_query = array(
-							'author'         => 0,
-							'feed'           => true,
-							'post_type'      => bbp_get_reply_post_type(),
-							'post_parent'    => 'any',
-							'post_status'    => array( bbp_get_public_status_id(), bbp_get_closed_status_id() ),
 							'posts_per_page' => bbp_get_replies_per_rss_page(),
-							'order'          => 'DESC',
-							'meta_query'     => $meta_query
+							'meta_query'     => array( array( ) ),
+							'feed'           => true
 						);
 
-						// Output the feed
-						bbp_display_replies_feed_rss2( $the_query );
+						// All replies
+						if ( empty( $select_query_vars ) ) {
+							bbp_display_replies_feed_rss2( $the_query );
+						}
 
-					// Only forum topics
-					} elseif ( !empty( $_GET['type'] ) && ( bbp_get_topic_post_type() == $_GET['type'] ) ) {
-
-						// The query
-						$the_query = array(
-							'author'         => 0,
-							'feed'           => true,
-							'post_type'      => bbp_get_topic_post_type(),
-							'post_parent'    => bbp_get_forum_id(),
-							'post_status'    => array( bbp_get_public_status_id(), bbp_get_closed_status_id() ),
-							'posts_per_page' => bbp_get_topics_per_rss_page(),
-							'order'          => 'DESC'
-						);
-
-						// Output the feed
-						bbp_display_topics_feed_rss2( $the_query );
-
-					// All forum topics and replies
-					} else {
-
-						// Exclude private/hidden forums if not looking at single
-						if ( empty( $select_query_vars ) )
-							$meta_query = array( bbp_exclude_forum_ids( 'meta_query' ) );
-
-						// The query
-						$the_query = array(
-							'author'         => 0,
-							'feed'           => true,
-							'post_type'      => array( bbp_get_reply_post_type(), bbp_get_topic_post_type() ),
-							'post_parent'    => 'any',
-							'post_status'    => array( bbp_get_public_status_id(), bbp_get_closed_status_id() ),
-							'posts_per_page' => bbp_get_replies_per_rss_page(),
-							'order'          => 'DESC',
-							'meta_query'     => $meta_query
-						);
-
-						// Output the feed
-						bbp_display_replies_feed_rss2( $the_query );
-					}
-
-					break;
-
-				// Topic feed - Show replies
-				case bbp_get_topic_post_type() :
-
-					// Single topic
-					if ( !empty( $select_query_vars ) ) {
-
-						// Load up our own query
-						query_posts( array_merge( array(
-							'post_type' => bbp_get_topic_post_type(),
-							'feed'      => true
-						), $select_query_vars ) );
-
-						// Output the feed
-						bbp_display_replies_feed_rss2( array( 'feed' => true ) );
-
-					// All topics
-					} else {
-
-						// The query
-						$the_query = array(
-							'author'         => 0,
-							'feed'           => true,
-							'post_parent'    => 'any',
-							'posts_per_page' => bbp_get_topics_per_rss_page(),
-							'show_stickies'  => false
-						);
-
-						// Output the feed
-						bbp_display_topics_feed_rss2( $the_query );
-					}
-
-					break;
-
-				// Replies
-				case bbp_get_reply_post_type() :
-
-					// The query
-					$the_query = array(
-						'posts_per_page' => bbp_get_replies_per_rss_page(),
-						'meta_query'     => array( array( ) ),
-						'feed'           => true
-					);
-
-					// All replies
-					if ( empty( $select_query_vars ) ) {
-						bbp_display_replies_feed_rss2( $the_query );
-					}
-
-					break;
+						break;
+				}
 			}
 
 		// Single Topic Vview
