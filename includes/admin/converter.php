@@ -1028,22 +1028,23 @@ abstract class BBP_Converter_Base {
 
 		/** Delete bbconverter users ******************************************/
 
-		if ( true === $this->sync_table ) {
-			$query = 'SELECT value_id FROM ' . $this->sync_table_name . ' INNER JOIN ' . $this->wpdb->users . ' ON(value_id = ID) WHERE meta_key = "_bbp_user_id" AND value_type = "user" LIMIT ' . $this->max_rows;
-		} else {
-			$query = 'SELECT user_id AS value_id FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_user_id" LIMIT ' . $this->max_rows;
-		}
-
-		update_option( '_bbp_converter_query', $query );
-
-		$users = $this->wpdb->get_results( $query, ARRAY_A );
-
-		if ( !empty( $users ) ) {
-			foreach ( $users as $value ) {
-				wp_delete_user( $value['value_id'] );
-			}
-			$has_delete = true;
-		}
+		// Crowd Favorite: Don't delete _bbp_user_id users, which are imported by a non-bbpress process
+		// if ( true === $this->sync_table ) {
+		// 	$query = 'SELECT value_id FROM ' . $this->sync_table_name . ' INNER JOIN ' . $this->wpdb->users . ' ON(value_id = ID) WHERE meta_key = "_bbp_user_id" AND value_type = "user" LIMIT ' . $this->max_rows;
+		// } else {
+		// 	$query = 'SELECT user_id AS value_id FROM ' . $this->wpdb->usermeta . ' WHERE meta_key = "_bbp_user_id" LIMIT ' . $this->max_rows;
+		// }
+		// 
+		// update_option( '_bbp_converter_query', $query );
+		// 
+		// $users = $this->wpdb->get_results( $query, ARRAY_A );
+		// 
+		// if ( !empty( $users ) ) {
+		// 	foreach ( $users as $value ) {
+		// 		wp_delete_user( $value['value_id'] );
+		// 	}
+		// 	$has_delete = true;
+		// }
 
 		unset( $posts );
 		unset( $users );
