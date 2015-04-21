@@ -458,7 +458,7 @@ function bbp_reply_url( $reply_id = 0 ) {
 	 * @since bbPress (r2679)
 	 *
 	 * @param int $reply_id Optional. Reply id
-	 * @param $string $redirect_to Optional. Pass a redirect value for use with
+	 * @param string $redirect_to Optional. Pass a redirect value for use with
 	 *                              shortcodes and other fun things.
 	 * @uses bbp_get_reply_id() To get the reply id
 	 * @uses bbp_get_reply_topic_id() To get the reply topic id
@@ -1576,10 +1576,12 @@ function bbp_reply_to( $reply_id = 0 ) {
 		$reply_to = 0;
 
 		// Check that reply_id is valid
-		if ( $reply_id = bbp_get_reply_id( $reply_id ) )
+		$reply_id = bbp_get_reply_id( $reply_id );
 
-			// Get reply_to value
+		// Get reply_to value
+		if ( !empty( $reply_id ) ) {
 			$reply_to = (int) get_post_meta( $reply_id, '_bbp_reply_to', true );
+		}
 
 		return (int) apply_filters( 'bbp_get_reply_to', $reply_to, $reply_id );
 	}
@@ -2463,16 +2465,13 @@ function bbp_form_reply_to() {
 
 		// Get $_REQUEST data
 		if ( isset( $_REQUEST['bbp_reply_to'] ) ) {
-			$reply_to = (int) $_REQUEST['bbp_reply_to'];
+			$reply_to = bbp_validate_reply_to( $_REQUEST['bbp_reply_to'] );
 		}
 
 		// If empty, get from meta
 		if ( empty( $reply_to ) ) {
 			$reply_to = bbp_get_reply_to();
 		}
-
-		// Validate
-		$reply_to = bbp_get_reply_id( $reply_to );
 
 		return (int) apply_filters( 'bbp_get_form_reply_to', $reply_to );
 	}

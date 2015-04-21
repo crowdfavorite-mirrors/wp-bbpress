@@ -1672,7 +1672,7 @@ function bbp_split_topic_handler( $action = '' ) {
 			}
 
 			// New topic from reply can't be a reply to
-			if ( ( $from_reply->ID === $destination_topic->ID && $from_reply->ID === $reply_to ) ) {
+			if ( ( $from_reply->ID === $destination_topic->ID ) && ( $from_reply->ID === $reply_to ) ) {
 				bbp_update_reply_to( $reply->ID, 0 );
 			}
 
@@ -2051,7 +2051,6 @@ function bbp_get_super_stickies() {
  *                    and action
  * @uses bbp_get_forum_permalink() To get the forum link
  * @uses bbp_get_topic_permalink() To get the topic link
- * @uses add_query_arg() To add args to the url
  * @uses wp_safe_redirect() To redirect to the topic
  * @uses bbPress::errors:add() To log the error messages
  */
